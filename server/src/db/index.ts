@@ -122,6 +122,8 @@ export function initDb(): void {
   try { db.exec('ALTER TABLE sessions ADD COLUMN prompt_context TEXT'); } catch {}
   try { db.exec('ALTER TABLE sessions ADD COLUMN applied_project_prompts INTEGER DEFAULT 0'); } catch {}
   try { db.exec('CREATE INDEX IF NOT EXISTS idx_sessions_lock_key ON sessions(lock_key)'); } catch {}
+  // Correlation ID for cross-event log tracing (T018/T048)
+  try { db.exec('ALTER TABLE sessions ADD COLUMN correlation_id TEXT'); } catch {}
 
   // Note: orphaned process cleanup is handled by cleanupStaleRunningSessions()
   // which is called after initDb() in index.ts — it kills processes AND marks DB records.

@@ -5,6 +5,7 @@ const { Terminal: HeadlessTerminal } = require('@xterm/headless') as { Terminal:
 const { SerializeAddon } = require('@xterm/addon-serialize') as { SerializeAddon: any };
 import { spawn } from 'child_process';
 import { platform } from 'os';
+import { nanoid } from 'nanoid';
 import * as sessionManager from '../services/session-manager.js';
 import { composeSessionTask } from '../services/prompt-composer.js';
 import { RESIZE_MARKER, registerPendingSpawn, getSessionTmuxServer } from '../services/session-manager.js';
@@ -13,6 +14,7 @@ import { getDb } from '../db/index.js';
 import type { SessionControllerMetadata } from '../services/session-manager.js';
 import { createSessionRecord } from '../services/session-records.js';
 import { getProjectPromptColumn } from '../services/project-prompt-compat.js';
+import { logLifecycleEvent } from '../services/session-lifecycle-log.js';
 
 type PromptContext = 'default' | 'openclaw';
 type RequestedBy = 'ui' | 'openclaw' | 'api';
@@ -165,6 +167,17 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
     const applyProjectPrompts = apply_project_prompts === true;
     const writeCapable = mode !== 'terminal';
     const lockBehavior: LockBehavior = lock_behavior === 'ignore' ? 'ignore' : 'reject';
+    const correlationId = nanoid(10);
+
+    logLifecycleEvent({
+      event: 'session_create_requested',
+      correlation_id: correlationId,
+      requested_by: requestedBy,
+      controller_kind: controller?.kind ?? null,
+      cli_type: cliType,
+      lock_key: projectPath,
+      detail: { mode: mode ?? 'session', apply_project_prompts: applyProjectPrompts, prompt_context: promptContext },
+    });
 
     if (mode === 'terminal') {
       const sessionResult = createSessionRecord(getDb(), {
@@ -178,11 +191,30 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
         writeCapable,
         promptContext,
         appliedProjectPrompts: false,
+        correlationId,
       });
       if (sessionResult.ok === false) {
+        logLifecycleEvent({
+          event: 'lock_rejected',
+          correlation_id: correlationId,
+          session_id: sessionResult.conflict.lock.session_id,
+          lock_key: projectPath,
+          requested_by: requestedBy,
+          reason: 'workspace_locked',
+        });
         return reply.status(409).send(sessionResult.conflict);
       }
       const session = sessionResult.session;
+      logLifecycleEvent({
+        event: 'session_created',
+        correlation_id: correlationId,
+        session_id: session.id,
+        lock_key: session.lock_key,
+        requested_by: requestedBy,
+        controller_kind: controller?.kind ?? null,
+        cli_type: cliType,
+        status: session.status,
+      });
       registerPendingSpawn(session.id, { projectPath, task: 'Terminal', mode: 'terminal', projectId: typeof project_id === 'string' ? project_id : undefined, cliType });
       return { ok: true, session };
     }
@@ -238,11 +270,31 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
         writeCapable,
         promptContext,
         appliedProjectPrompts: applyProjectPrompts,
+        correlationId,
       });
       if (sessionResult.ok === false) {
+        logLifecycleEvent({
+          event: 'lock_rejected',
+          correlation_id: correlationId,
+          session_id: sessionResult.conflict.lock.session_id,
+          lock_key: projectPath,
+          requested_by: requestedBy,
+          reason: 'workspace_locked',
+        });
         return reply.status(409).send(sessionResult.conflict);
       }
       const session = sessionResult.session;
+      logLifecycleEvent({
+        event: 'session_created',
+        correlation_id: correlationId,
+        session_id: session.id,
+        lock_key: session.lock_key,
+        requested_by: requestedBy,
+        controller_kind: controller?.kind ?? null,
+        cli_type: cliType,
+        status: session.status,
+        detail: { mode: 'agent', agent_type },
+      });
       registerPendingSpawn(session.id, { projectPath, task: finalTask, mode: 'agent', agentType: agent_type, projectId, cliType });
       return { ok: true, session };
     }
@@ -258,11 +310,30 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       writeCapable,
       promptContext,
       appliedProjectPrompts: applyProjectPrompts,
+      correlationId,
     });
     if (sessionResult.ok === false) {
+      logLifecycleEvent({
+        event: 'lock_rejected',
+        correlation_id: correlationId,
+        session_id: sessionResult.conflict.lock.session_id,
+        lock_key: projectPath,
+        requested_by: requestedBy,
+        reason: 'workspace_locked',
+      });
       return reply.status(409).send(sessionResult.conflict);
     }
     const session = sessionResult.session;
+    logLifecycleEvent({
+      event: 'session_created',
+      correlation_id: correlationId,
+      session_id: session.id,
+      lock_key: session.lock_key,
+      requested_by: requestedBy,
+      controller_kind: controller?.kind ?? null,
+      cli_type: cliType,
+      status: session.status,
+    });
     registerPendingSpawn(session.id, { projectPath, task: finalTask, mode: 'session', projectId, cliType });
 
     return { ok: true, session };

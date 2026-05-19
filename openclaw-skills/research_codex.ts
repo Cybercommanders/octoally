@@ -4,6 +4,7 @@ export const cliType = 'codex' as const;
 
 const researchCodex = createResearchSessionSkill({ cliType });
 
+export const launch = researchCodex.launch;
 export const status = researchCodex.status;
 export const monitor = researchCodex.monitor;
 const continueOperation = researchCodex.continue;

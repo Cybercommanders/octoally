@@ -4,6 +4,7 @@ export const cliType = 'claude' as const;
 
 const researchClaude = createResearchSessionSkill({ cliType });
 
+export const launch = researchClaude.launch;
 export const status = researchClaude.status;
 export const monitor = researchClaude.monitor;
 const continueOperation = researchClaude.continue;

@@ -34,6 +34,7 @@ export interface SessionRecord {
   write_capable: number | null;
   prompt_context: string | null;
   applied_project_prompts: number | null;
+  correlation_id: string | null;
   started_at: string | null;
   completed_at: string | null;
   exit_code: number | null;
@@ -54,6 +55,7 @@ export interface CreateSessionRecordInput {
   writeCapable?: boolean;
   promptContext?: string | null;
   appliedProjectPrompts?: boolean;
+  correlationId?: string;
 }
 
 export interface WorkspaceLockConflict {
@@ -118,9 +120,10 @@ export function createSessionRecord(
         lock_key,
         write_capable,
         prompt_context,
-        applied_project_prompts
+        applied_project_prompts,
+        correlation_id
       )
-      VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id,
       input.projectId ?? null,
@@ -133,6 +136,7 @@ export function createSessionRecord(
       writeCapable ? 1 : 0,
       input.promptContext ?? null,
       input.appliedProjectPrompts ? 1 : 0,
+      input.correlationId ?? null,
     );
 
     return {

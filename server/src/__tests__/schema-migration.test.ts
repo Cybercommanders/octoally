@@ -74,6 +74,7 @@ function applyMigrations(db: Database): void {
     'ALTER TABLE sessions ADD COLUMN prompt_context TEXT',
     'ALTER TABLE sessions ADD COLUMN applied_project_prompts INTEGER DEFAULT 0',
     'CREATE INDEX IF NOT EXISTS idx_sessions_lock_key ON sessions(lock_key)',
+    'ALTER TABLE sessions ADD COLUMN correlation_id TEXT',
   ];
   for (const sql of t005Migrations) {
     try { db.run(sql); } catch {}
@@ -106,6 +107,7 @@ describe('T005: Session metadata schema', () => {
     expect(colNames).toContain('write_capable');
     expect(colNames).toContain('prompt_context');
     expect(colNames).toContain('applied_project_prompts');
+    expect(colNames).toContain('correlation_id');
   });
 
   test('requested_by defaults to "ui"', () => {

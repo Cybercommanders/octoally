@@ -6,6 +6,7 @@ import {
   cancel,
   continue as continueSession,
   createResearchSessionSkill,
+  launch,
   monitor,
   status,
 } from '../octoally_research_session.ts';
@@ -281,6 +282,174 @@ describe('octoally_research_session', () => {
     const baseSkill = createResearchSessionSkill();
     assert.equal(typeof researchClaude.status, 'function');
     assert.equal(typeof researchCodex.monitor, 'function');
+    assert.equal(typeof researchClaude.launch, 'function');
+    assert.equal(typeof researchCodex.launch, 'function');
     assert.notEqual(baseSkill, researchClaude);
+  });
+
+  test('launch posts composed payload and returns first output (T016/T017)', async () => {
+    let postBody: Record<string, unknown> | null = null;
+    const client = createStubClient((url, init) => {
+      if (url.pathname === '/api/sessions' && init.method === 'POST') {
+        postBody = JSON.parse(String(init.body));
+        return json(200, {
+          ok: true,
+          session: {
+            id: 'sess-launch-1',
+            task: 'Compose task',
+            status: 'pending',
+            requested_by: 'openclaw',
+            controller_kind: 'openclaw',
+            lock_key: '/workspaces/demo',
+          },
+        });
+      }
+
+      if (url.pathname === '/api/sessions/sess-launch-1/display') {
+        return json(200, {
+          sessionId: 'sess-launch-1',
+          processState: 'busy',
+          promptType: null,
+          choices: null,
+          output: 'Booting research agent…\nReady.',
+          cursor: 4,
+          truncated: false,
+        });
+      }
+
+      return json(500, { error: `Unexpected ${init.method ?? 'GET'} ${url.pathname}` });
+    });
+
+    const result = await launch({
+      projectPath: '/workspaces/demo',
+      task: 'Investigate slow startup',
+      cliType: 'claude',
+      controller: {
+        kind: 'openclaw',
+        skill_name: 'research_claude',
+        request_id: 'req-1',
+      },
+      client,
+    });
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return; // type narrowing for TS
+
+    assert.equal(result.sessionId, 'sess-launch-1');
+    assert.equal(result.cliType, 'claude');
+    assert.equal(result.lockKey, '/workspaces/demo');
+    assert.equal(result.requestedBy, 'openclaw');
+    assert.equal(result.controllerKind, 'openclaw');
+    assert.match(result.summary, /Ready/);
+    assert.equal(result.firstOutput, 'Booting research agent…\nReady.');
+
+    assert.ok(postBody);
+    assert.equal(postBody!.project_path, '/workspaces/demo');
+    assert.equal(postBody!.task, 'Investigate slow startup');
+    assert.equal(postBody!.cli_type, 'claude');
+    assert.equal(postBody!.prompt_context, 'openclaw');
+    assert.equal(postBody!.requested_by, 'openclaw');
+    assert.equal(postBody!.apply_project_prompts, true);
+    assert.deepEqual(postBody!.controller, {
+      kind: 'openclaw',
+      skill_name: 'research_claude',
+      request_id: 'req-1',
+    });
+  });
+
+  test('launch surfaces 409 workspace_locked with monitor/cancel remediation (T026)', async () => {
+    let displayCalled = false;
+    const client = createStubClient((url, init) => {
+      if (url.pathname === '/api/sessions' && init.method === 'POST') {
+        return json(409, {
+          error: 'workspace_locked',
+          message: 'A write-capable session is already active for this workspace.',
+          lock: {
+            session_id: 'existing-sess',
+            requested_by: 'ui',
+            controller_kind: null,
+            started_at: '2026-05-18T01:23:45Z',
+          },
+        });
+      }
+
+      if (url.pathname.includes('/display')) {
+        displayCalled = true;
+      }
+
+      return json(500, { error: `Unexpected ${init.method ?? 'GET'} ${url.pathname}` });
+    });
+
+    const result = await launch({
+      projectPath: '/workspaces/demo',
+      task: 'Try to take the workspace',
+      cliType: 'claude',
+      client,
+    });
+
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+
+    assert.equal(result.reason, 'workspace_locked');
+    assert.equal(result.existing.sessionId, 'existing-sess');
+    assert.equal(result.existing.requestedBy, 'ui');
+    assert.equal(result.existing.controllerKind, null);
+    assert.equal(result.existing.startedAt, '2026-05-18T01:23:45Z');
+    assert.equal(result.remediation.monitor.sessionId, 'existing-sess');
+    assert.equal(result.remediation.cancel.sessionId, 'existing-sess');
+    assert.equal(displayCalled, false);
+  });
+
+  test('research_codex wrapper exposes launch with codex cli_type', async () => {
+    let seenCliType: unknown = null;
+    const client = createStubClient((url, init) => {
+      if (url.pathname === '/api/sessions' && init.method === 'POST') {
+        const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+        seenCliType = body.cli_type;
+        return json(200, {
+          ok: true,
+          session: {
+            id: 'sess-codex-1',
+            task: body.task,
+            status: 'pending',
+            requested_by: 'openclaw',
+            controller_kind: null,
+            lock_key: '/workspaces/codex',
+            cli_type: 'codex',
+          },
+        });
+      }
+      if (url.pathname === '/api/sessions/sess-codex-1/display') {
+        return json(200, {
+          sessionId: 'sess-codex-1',
+          processState: 'busy',
+          promptType: null,
+          choices: null,
+          output: '',
+          cursor: 0,
+          truncated: false,
+        });
+      }
+      return json(500, { error: 'Unexpected route' });
+    });
+
+    assert.equal(typeof researchCodex.launch, 'function');
+
+    const result = await launch({
+      projectPath: '/workspaces/codex',
+      task: 'Codex run',
+      cliType: 'codex',
+      controller: {
+        kind: 'openclaw',
+        skill_name: 'research_codex',
+        request_id: 'req-codex-1',
+      },
+      client,
+    });
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.cliType, 'codex');
+    assert.equal(seenCliType, 'codex');
   });
 });

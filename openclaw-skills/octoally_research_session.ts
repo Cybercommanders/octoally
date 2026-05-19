@@ -102,6 +102,63 @@ export interface CancelResult {
   lockReleased: boolean;
 }
 
+export interface SessionControllerMetadata {
+  kind: string;
+  skill_name: string;
+  channel_id?: string | null;
+  message_id?: string | null;
+  request_id: string;
+}
+
+export interface LaunchOptions {
+  projectPath: string;
+  task: string;
+  projectId?: string;
+  mode?: 'session' | 'terminal' | 'agent';
+  agentType?: string;
+  applyProjectPrompts?: boolean;
+  promptContext?: 'default' | 'openclaw';
+  requestedBy?: 'ui' | 'openclaw' | 'api';
+  controller?: SessionControllerMetadata;
+  lockBehavior?: 'reject' | 'ignore';
+  client?: OctoAllyClient;
+  firstOutputLines?: number;
+  cliType?: ExecutorType;
+}
+
+export interface LaunchSuccessResult {
+  ok: true;
+  sessionId: string;
+  status: NormalizedSessionStatus;
+  cliType: ExecutorType;
+  lockKey: string | null;
+  requestedBy: string | null;
+  controllerKind: string | null;
+  task: string;
+  firstOutput: string | null;
+  summary: string;
+}
+
+export interface WorkspaceLockedDetails {
+  sessionId: string;
+  requestedBy: string;
+  controllerKind: string | null;
+  startedAt: string;
+}
+
+export interface LaunchLockedResult {
+  ok: false;
+  reason: 'workspace_locked';
+  message: string;
+  existing: WorkspaceLockedDetails;
+  remediation: {
+    monitor: { sessionId: string };
+    cancel: { sessionId: string };
+  };
+}
+
+export type LaunchResult = LaunchSuccessResult | LaunchLockedResult;
+
 export interface OctoAllyClientOptions {
   baseUrl?: string;
   fetchImpl?: typeof fetch;
@@ -202,6 +259,27 @@ export class OctoAllyClient {
     return this.request<CancelResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/cancel`, {
       method: 'POST',
     });
+  }
+
+  async createSession(payload: Record<string, unknown>): Promise<{ ok: true; session: Record<string, unknown> } | { ok: false; conflict: WorkspaceLockedRaw }> {
+    const headers = new Headers({ accept: 'application/json', 'content-type': 'application/json' });
+    const response = await this.fetchImpl(new URL('/api/sessions', this.baseUrl), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    const body = await parseResponsePayload(response);
+    if (response.status === 409 && isWorkspaceLockedConflict(body)) {
+      return { ok: false, conflict: body };
+    }
+    if (!response.ok) {
+      throw new OctoAllyRequestError(
+        extractErrorMessage(response.status, body),
+        response.status,
+        body,
+      );
+    }
+    return body as { ok: true; session: Record<string, unknown> };
   }
 
   private async requestOrNull<T>(path: string, init?: RequestInit): Promise<T | null> {
@@ -361,6 +439,86 @@ export async function cancel(
   };
 }
 
+export async function launch(options: LaunchOptions): Promise<LaunchResult> {
+  const client = options.client ?? new OctoAllyClient();
+  const cliType = options.cliType ?? 'claude';
+  const mode = options.mode ?? 'session';
+  const requestedBy = options.requestedBy ?? 'openclaw';
+  const promptContext = options.promptContext ?? 'openclaw';
+  const lockBehavior = options.lockBehavior ?? 'reject';
+  const applyProjectPrompts = options.applyProjectPrompts ?? true;
+  const firstOutputLines = options.firstOutputLines ?? DEFAULT_PROMPT_LINES;
+
+  if (!options.projectPath || !options.projectPath.trim()) {
+    throw new Error('launch: projectPath is required');
+  }
+  if (!options.task || !options.task.trim()) {
+    throw new Error('launch: task is required');
+  }
+
+  const payload: Record<string, unknown> = {
+    project_path: options.projectPath,
+    task: options.task,
+    mode,
+    cli_type: cliType,
+    apply_project_prompts: applyProjectPrompts,
+    prompt_context: promptContext,
+    requested_by: requestedBy,
+    lock_behavior: lockBehavior,
+  };
+  if (options.projectId) payload.project_id = options.projectId;
+  if (options.agentType) payload.agent_type = options.agentType;
+  if (options.controller) payload.controller = options.controller;
+
+  const result = await client.createSession(payload);
+
+  if (result.ok === false) {
+    const conflict = result.conflict;
+    return {
+      ok: false,
+      reason: 'workspace_locked',
+      message: conflict.message,
+      existing: {
+        sessionId: conflict.lock.session_id,
+        requestedBy: conflict.lock.requested_by,
+        controllerKind: conflict.lock.controller_kind,
+        startedAt: conflict.lock.started_at,
+      },
+      remediation: {
+        monitor: { sessionId: conflict.lock.session_id },
+        cancel: { sessionId: conflict.lock.session_id },
+      },
+    };
+  }
+
+  const session = result.session as Record<string, unknown>;
+  const sessionId = String(session.id ?? '');
+  const recordStatus = typeof session.status === 'string' ? session.status : 'pending';
+
+  let firstOutput: string | null = null;
+  let summary = '';
+  try {
+    const display = await client.getDisplay(sessionId, { lines: firstOutputLines });
+    firstOutput = display.output;
+    summary = summarizeOutput(display.output);
+  } catch {
+    // First-output fetch is best-effort; absence is not a failure for launch.
+  }
+
+  return {
+    ok: true,
+    sessionId,
+    status: normalizeSessionRecordStatus(recordStatus),
+    cliType,
+    lockKey: (session.lock_key as string | null) ?? null,
+    requestedBy: (session.requested_by as string | null) ?? requestedBy,
+    controllerKind: (session.controller_kind as string | null) ?? options.controller?.kind ?? null,
+    task: String(session.task ?? options.task),
+    firstOutput,
+    summary,
+  };
+}
+
 export function createResearchSessionSkill(options: ResearchSessionSkillOptions = {}) {
   const client = new OctoAllyClient(options);
   const cliType = options.cliType ?? 'claude';
@@ -368,6 +526,8 @@ export function createResearchSessionSkill(options: ResearchSessionSkillOptions 
   return {
     cliType,
     client,
+    launch: (launchOptions: Omit<LaunchOptions, 'client' | 'cliType'>) =>
+      launch({ ...launchOptions, client, cliType }),
     status: (sessionId: string, statusOptions: Omit<StatusOptions, 'client'> = {}) =>
       status(sessionId, { ...statusOptions, client }),
     monitor: (sessionId: string, cursor?: number, monitorOptions: Omit<MonitorOptions, 'client'> = {}) =>
@@ -516,6 +676,25 @@ function extractErrorMessage(statusCode: number, body: unknown): string {
   }
 
   return `OctoAlly request failed with status ${statusCode}`;
+}
+
+export interface WorkspaceLockedRaw {
+  error: 'workspace_locked';
+  message: string;
+  lock: {
+    session_id: string;
+    requested_by: string;
+    controller_kind: string | null;
+    started_at: string;
+  };
+}
+
+function isWorkspaceLockedConflict(body: unknown): body is WorkspaceLockedRaw {
+  if (!body || typeof body !== 'object') return false;
+  const record = body as Record<string, unknown>;
+  if (record.error !== 'workspace_locked') return false;
+  const lock = record.lock as Record<string, unknown> | undefined;
+  return !!lock && typeof lock.session_id === 'string';
 }
 
 const octoallyResearchSession = createResearchSessionSkill();

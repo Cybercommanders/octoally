@@ -14,6 +14,7 @@ import type { WebSocket } from 'ws';
 import { getOrCreateTracker, removeTracker, recoverFromBuffer } from './session-state.js';
 import { transitionSessionToTerminal } from './session-records.js';
 import { normalizeWorkspacePath } from './workspace-lock.js';
+import { logLifecycleEvent } from './session-lifecycle-log.js';
 
 const nodeRequire = createRequire(import.meta.url);
 const { Terminal: HeadlessTerminal } = nodeRequire('@xterm/headless') as { Terminal: any };
@@ -759,6 +760,13 @@ function wireWorker(sessionId: string, worker: ChildProcess, projectPath?: strin
           extraBlockedStatuses: ['detached', 'released'],
         });
 
+        logLifecycleEvent({
+          event: status === 'completed' ? 'session_completed' : 'session_failed',
+          session_id: sessionId,
+          status,
+          exit_code: msg.exitCode,
+        }, db);
+
         insertEvent({
           session_id: sessionId,
           type: 'session_end',
@@ -822,6 +830,13 @@ function wireWorker(sessionId: string, worker: ChildProcess, projectPath?: strin
           exitCode: code ?? -1,
           extraBlockedStatuses: ['detached', 'released'],
         });
+        logLifecycleEvent({
+          event: 'session_failed',
+          session_id: sessionId,
+          status: 'failed',
+          exit_code: code ?? -1,
+          reason: 'worker_exited_unexpectedly',
+        }, db);
       }
 
       for (const ws of active.subscribers) {
@@ -1484,6 +1499,15 @@ export async function killSession(sessionId: string): Promise<boolean> {
     status: 'cancelled',
     extraBlockedStatuses: ['released'],
   });
+
+  if (result) {
+    logLifecycleEvent({
+      event: 'session_cancelled',
+      session_id: sessionId,
+      status: 'cancelled',
+      reason: 'operator_kill',
+    }, db);
+  }
 
   console.log(`[KILL] Session ${sessionId} killed (db_updated=${result})`);
   return !!active || result;

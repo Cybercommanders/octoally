@@ -39,6 +39,7 @@ function initTestDb(): void {
       write_capable INTEGER DEFAULT 1,
       prompt_context TEXT,
       applied_project_prompts INTEGER DEFAULT 0,
+      correlation_id TEXT,
       external_socket TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))

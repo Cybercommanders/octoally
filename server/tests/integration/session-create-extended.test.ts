@@ -58,6 +58,7 @@ function initTestDb(): void {
       write_capable INTEGER DEFAULT 1,
       prompt_context TEXT,
       applied_project_prompts INTEGER DEFAULT 0,
+      correlation_id TEXT,
       terminal_cols INTEGER DEFAULT 120
     )
   `);
