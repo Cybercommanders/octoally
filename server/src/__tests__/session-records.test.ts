@@ -252,3 +252,84 @@ describe('transitionSessionToTerminal', () => {
     expect(row.completed_at).toBe('2026-03-27T12:00:00Z');
   });
 });
+
+describe('controller attribution (002 FR-005, FR-006, FR-007)', () => {
+  const countSessions = () =>
+    (db.query('SELECT COUNT(*) AS n FROM sessions').get() as { n: number }).n;
+
+  test('requested_by "mcp" persists alongside the calling harness kind', () => {
+    const result = createSessionRecord(asDb(), {
+      projectPath: '/home/user/mcp-project',
+      task: 'launch from hermes',
+      requestedBy: 'mcp',
+      controller: {
+        kind: 'hermes',
+        skill_name: 'octoally_launch_session',
+        request_id: 'req-mcp-1',
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected the launch to succeed');
+
+    const row = db.query(
+      'SELECT requested_by, controller_kind FROM sessions WHERE id = ?',
+    ).get(result.session.id) as { requested_by: string; controller_kind: string };
+
+    expect(row.requested_by).toBe('mcp');
+    expect(row.controller_kind).toBe('hermes');
+  });
+
+  test('requested_by "mcp" without a controller is rejected and writes no row', () => {
+    expect(() =>
+      createSessionRecord(asDb(), {
+        projectPath: '/home/user/mcp-project',
+        task: 'unattributed launch',
+        requestedBy: 'mcp',
+      }),
+    ).toThrow(/controller_kind_required/);
+
+    expect(countSessions()).toBe(0);
+  });
+
+  test('requested_by "mcp" with a blank controller kind is rejected and writes no row', () => {
+    expect(() =>
+      createSessionRecord(asDb(), {
+        projectPath: '/home/user/mcp-project',
+        task: 'blank kind',
+        requestedBy: 'mcp',
+        controller: { kind: '   ', skill_name: 'octoally_launch_session', request_id: 'req-mcp-2' },
+      }),
+    ).toThrow(/controller_kind_required/);
+
+    expect(countSessions()).toBe(0);
+  });
+
+  test('the existing openclaw path is unchanged and needs no controller', () => {
+    const result = createSessionRecord(asDb(), {
+      projectPath: '/home/user/legacy-project',
+      task: 'legacy launch',
+      requestedBy: 'openclaw',
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('expected the legacy launch to succeed');
+
+    const row = db.query(
+      'SELECT requested_by, controller_kind FROM sessions WHERE id = ?',
+    ).get(result.session.id) as { requested_by: string; controller_kind: string | null };
+
+    expect(row.requested_by).toBe('openclaw');
+    expect(row.controller_kind).toBeNull();
+  });
+
+  test('ui launches are still allowed without a controller', () => {
+    const result = createSessionRecord(asDb(), {
+      projectPath: '/home/user/ui-project',
+      task: 'ui launch',
+      requestedBy: 'ui',
+    });
+
+    expect(result.ok).toBe(true);
+  });
+});

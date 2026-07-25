@@ -224,7 +224,7 @@ describe('POST /api/sessions extended contract', () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toEqual({
-      error: 'requested_by must be one of: ui, openclaw, api',
+      error: 'requested_by must be one of: ui, openclaw, api, mcp',
     });
   });
 });

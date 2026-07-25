@@ -419,6 +419,12 @@ async function continueSession(
   const client = options.client ?? new OctoAllyClient();
   const currentStatus = await status(sessionId, { client });
 
+  // ADVISORY ONLY. Since feature 002 the OctoAlly server enforces this rule
+  // itself (409 destructive_confirmation_required) in the execute route, and
+  // the server's answer is authoritative. This check stays because it gives
+  // the caller feedback without a round trip and a clearer error message, but
+  // it is not the control: a caller that skips this client reaches the same
+  // guard on the server. See specs/002-octoally-mcp-server/contracts/destructive-guard.md.
   if (
     currentStatus.waitingForInput
     && currentStatus.prompt?.isDestructive

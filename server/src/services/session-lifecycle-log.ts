@@ -12,7 +12,8 @@ export type LifecycleEvent =
   | 'session_failed'
   | 'session_cancelled'
   | 'waiting_for_input'
-  | 'session_detached';
+  | 'session_detached'
+  | 'destructive_confirmation_refused';
 
 export interface LifecycleLogFields {
   event: LifecycleEvent;

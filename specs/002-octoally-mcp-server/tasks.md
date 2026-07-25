@@ -49,30 +49,30 @@
 
 ### Controller attribution (US1)
 
-- [ ] T011 [US1] Widen `CreateSessionRecordInput.requestedBy` at `server/src/services/session-records.ts:52` to include `'mcp'`
-- [ ] T012 [US1] Enforce in `createSessionRecord` that `requestedBy === 'mcp'` requires a non-empty `controller.kind`, rejecting before any row is written
-- [ ] T013 [US1] Surface that rejection at the session create route as HTTP 400 with `controller_kind_required`
-- [ ] T014 [P] [US1] Test: create with `requested_by` `mcp` and no controller kind is rejected and writes no row
-- [ ] T015 [P] [US1] Test: create with `requested_by` `mcp` and a controller kind persists both fields
-- [ ] T016 [P] [US1] Test: existing `requested_by` `openclaw` path is unchanged, proving backward compatibility
+- [x] T011 [US1] Widen `CreateSessionRecordInput.requestedBy` at `server/src/services/session-records.ts:52` to include `'mcp'`
+- [x] T012 [US1] Enforce in `createSessionRecord` that `requestedBy === 'mcp'` requires a non-empty `controller.kind`, rejecting before any row is written
+- [x] T013 [US1] Surface that rejection at the session create route as HTTP 400 with `controller_kind_required`
+- [x] T014 [P] [US1] Test: create with `requested_by` `mcp` and no controller kind is rejected and writes no row
+- [x] T015 [P] [US1] Test: create with `requested_by` `mcp` and a controller kind persists both fields
+- [x] T016 [P] [US1] Test: existing `requested_by` `openclaw` path is unchanged, proving backward compatibility
 
 ### Destructive guard (US4)
 
-- [ ] T017 [US4] Create `server/src/services/prompt-destructiveness.ts`, moving the keyword pattern from `integration-client/octoally_research_session.ts:209` and the affirmative pattern beside it
-- [ ] T018 [US4] Classify the active prompt in the execute path at `server/src/routes/agent.ts:185`
-- [ ] T019 [US4] Reject with HTTP 409 `destructive_confirmation_required` when the input answers a destructive prompt affirmatively and `confirm_destructive` is absent or false, leaving session state unchanged
-- [ ] T020 [US4] Accept `confirm_destructive` in the execute request body and pass it through the decision table in `contracts/destructive-guard.md`
-- [ ] T021 [US4] **Test called through the HTTP API directly, with no MCP server and no client in the path**: answering a destructive prompt without the flag returns 409 and does not deliver input. This is the test that distinguishes an enforced rule from a documented one.
-- [ ] T022 [P] [US4] Test: same call with `confirm_destructive` true delivers the input
-- [ ] T023 [P] [US4] Test: affirmative answer to a non-destructive prompt is delivered
-- [ ] T024 [P] [US4] Test: non-affirmative answer, for example Cancel, to a destructive prompt is delivered
-- [ ] T025 [P] [US4] Unit tests for classification over prompt text and over choices
-- [ ] T026 [US4] Mark the client-side guard in `integration-client/` as advisory in comments, and keep its behaviour so the OpenClaw skill still refuses early
+- [x] T017 [US4] Create `server/src/services/prompt-destructiveness.ts`, moving the keyword pattern from `integration-client/octoally_research_session.ts:209` and the affirmative pattern beside it
+- [x] T018 [US4] Classify the active prompt in the execute path at `server/src/routes/agent.ts:185`
+- [x] T019 [US4] Reject with HTTP 409 `destructive_confirmation_required` when the input answers a destructive prompt affirmatively and `confirm_destructive` is absent or false, leaving session state unchanged
+- [x] T020 [US4] Accept `confirm_destructive` in the execute request body and pass it through the decision table in `contracts/destructive-guard.md`
+- [x] T021 [US4] **Test called through the HTTP API directly, with no MCP server and no client in the path**: answering a destructive prompt without the flag returns 409 and does not deliver input. This is the test that distinguishes an enforced rule from a documented one.
+- [x] T022 [P] [US4] Test: same call with `confirm_destructive` true delivers the input
+- [x] T023 [P] [US4] Test: affirmative answer to a non-destructive prompt is delivered
+- [x] T024 [P] [US4] Test: non-affirmative answer, for example Cancel, to a destructive prompt is delivered
+- [x] T025 [P] [US4] Unit tests for classification over prompt text and over choices
+- [x] T026 [US4] Mark the client-side guard in `integration-client/` as advisory in comments, and keep its behaviour so the OpenClaw skill still refuses early
 
 ### Observability
 
-- [ ] T027 Extend `server/src/services/session-lifecycle-log.ts` emissions to carry `controller_kind` on execute, cancel, and destructive rejection events
-- [ ] T028 [P] Test: a destructive rejection emits a lifecycle log line with the correlation ID and controller kind
+- [x] T027 Extend `server/src/services/session-lifecycle-log.ts` emissions to carry `controller_kind` on execute, cancel, and destructive rejection events
+- [x] T028 [P] Test: a destructive rejection emits a lifecycle log line with the correlation ID and controller kind
 
 **Checkpoint**: Feature 001 FR-014 is enforced by the server, verifiable without any MCP code.
 

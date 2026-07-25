@@ -139,6 +139,15 @@ export class SessionStateTracker {
     return this._pendingExecute !== null;
   }
 
+  /**
+   * Output produced since the last input was sent — the text a detected prompt
+   * was read from. Exposed so the execute route can classify the prompt it is
+   * about to answer; `state` carries only the type and the choices.
+   */
+  get outputSinceInput(): string {
+    return this._outputSinceInput;
+  }
+
   get claudeSessionId(): string | null {
     return this._claudeSessionId;
   }

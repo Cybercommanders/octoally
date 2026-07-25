@@ -161,6 +161,45 @@ describe('session routes validation', () => {
     expect(createSessionRecordCalls).toBe(0);
   });
 
+  test('POST /sessions rejects requested_by "mcp" without a controller (002 FR-006)', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sessions',
+      payload: {
+        project_path: '/tmp/bridge',
+        task: 'Unattributed MCP launch',
+        requested_by: 'mcp',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual({
+      error: 'controller_kind_required',
+      message: 'requested_by "mcp" requires controller.kind identifying the calling harness',
+    });
+    expect(createSessionRecordCalls).toBe(0);
+  });
+
+  test('POST /sessions accepts requested_by "mcp" when the harness is named', async () => {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/sessions',
+      payload: {
+        project_path: '/tmp/bridge',
+        task: 'Attributed MCP launch',
+        requested_by: 'mcp',
+        controller: {
+          kind: 'hermes',
+          skill_name: 'octoally_launch_session',
+          request_id: 'req-mcp-route-1',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBeLessThan(400);
+    expect(createSessionRecordCalls).toBe(1);
+  });
+
   test('DELETE /sessions/:id returns 404 for an already-cancelled or otherwise inactive session', async () => {
     const response = await app.inject({
       method: 'DELETE',
