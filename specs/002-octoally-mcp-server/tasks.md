@@ -22,22 +22,24 @@
 
 ## Blocking Prerequisite
 
-- [ ] T000 Merge or push branch `001-openclaw-session-bridge`. Every task below depends on its lock, controller metadata, and lifecycle logging. Do not stack this feature on unpushed work.
+- [~] T000 Merge or push branch `001-openclaw-session-bridge`. Every task below depends on its lock, controller metadata, and lifecycle logging. Do not stack this feature on unpushed work.
+  - Pushed to the `fork` remote through `68abb45` and merged forward into this branch, so 002 builds on the integrated, compiling 001.
+  - **Still open**: 001 is not merged to `origin/main`. Push access to `ai-genius-automations/octoally` is denied for this account (403), so the merge needs a PR from the fork. Until that lands, 002 remains stacked on an unmerged branch.
 
 ---
 
 ## Phase 1: Groundwork (no behaviour change)
 
-- [ ] T001 Add `"test": "bun test"` to `server/package.json` scripts
-- [ ] T002 Add root `"test"` script in `package.json` running the server, dashboard, and integration-client suites
-- [ ] T003 Verify the existing 66 server tests pass through the new script before any other change
-- [ ] T004 Rename directory `openclaw-skills/` to `integration-client/`
-- [ ] T005 Update every import of the renamed module across the repository, verified by a word-boundary grep for `openclaw-skills` with each hit inspected
-- [ ] T006 [P] Update `specs/001-openclaw-session-bridge/plan.md` structure block to note the rename, without rewriting closed 001 tasks
-- [ ] T007 Fix base URL resolution in `integration-client/octoally_research_session.ts:201`: resolve `OCTOALLY_BASE_URL`, then `PORT`, then `http://127.0.0.1:42010`. The current `http://localhost:3000` default cannot reach a server whose default port is 42010.
-- [ ] T008 Add a unit test for base URL resolution precedence in `integration-client/tests/`
-- [ ] T009 Consolidate the duplicate `SessionControllerMetadata` declarations at `server/src/services/session-records.ts:15` and `server/src/services/session-manager.ts:125` into one exported type
-- [ ] T010 Re-run the full suite. Groundwork is complete only when the pre-existing tests pass unchanged.
+- [x] T001 Add `"test": "bun test"` to `server/package.json` scripts
+- [x] T002 Add root `"test"` script in `package.json` running the server, dashboard, and integration-client suites
+- [x] T003 Verify the existing 66 server tests pass through the new script before any other change
+- [x] T004 Rename directory `openclaw-skills/` to `integration-client/`
+- [x] T005 Update every import of the renamed module across the repository, verified by a word-boundary grep for `openclaw-skills` with each hit inspected
+- [x] T006 [P] Update `specs/001-openclaw-session-bridge/plan.md` structure block to note the rename, without rewriting closed 001 tasks
+- [x] T007 Fix base URL resolution in `integration-client/octoally_research_session.ts:201`: resolve `OCTOALLY_BASE_URL`, then `PORT`, then `http://127.0.0.1:42010`. The current `http://localhost:3000` default cannot reach a server whose default port is 42010.
+- [x] T008 Add a unit test for base URL resolution precedence in `integration-client/tests/`
+- [x] T009 Consolidate the duplicate `SessionControllerMetadata` declarations at `server/src/services/session-records.ts:15` and `server/src/services/session-manager.ts:125` into one exported type
+- [x] T010 Re-run the full suite. Groundwork is complete only when the pre-existing tests pass unchanged.
 
 **Checkpoint**: Repository state is behaviourally identical, with a runnable test command and a reachable default base URL.
 

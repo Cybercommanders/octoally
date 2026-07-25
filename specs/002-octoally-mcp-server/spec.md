@@ -152,7 +152,7 @@ Without discovery the operator has to paste paths by hand, which reintroduces th
 - **Controller**: The harness driving a session. Identified by kind, for example `hermes`, `claude-code`, `codex`, or `openclaw`. Already modelled in feature 001 as controller metadata.
 - **Transport Attribution**: `requested_by` describes how the request reached OctoAlly (`ui`, `api`, `openclaw`, and now `mcp`), while controller kind describes which harness originated it. Separating these prevents one enum value per harness.
 - **Output Cursor**: An opaque marker identifying how much session output the caller has already consumed.
-- **Integration Client**: The shared TypeScript client currently at `openclaw-skills/`, consumed by both the OpenClaw skill and the MCP server.
+- **Integration Client**: The shared TypeScript client at `integration-client/`, consumed by both the OpenClaw skill and the MCP server.
 
 ## Success Criteria *(mandatory)*
 
@@ -174,7 +174,7 @@ Without discovery the operator has to paste paths by hand, which reintroduces th
 - Feature 001 is merged, or at minimum this branch is stacked on it, since every tool depends on its lock and controller metadata.
 - Hermes Agent skills are not required. MCP is sufficient, so no SKILL.md files are authored for Hermes in this feature.
 - The `openclaw_prompt` project column keeps its name in this feature. Renaming it is a separate migration whose risk should not be bundled with a new integration surface.
-- Prompt destructiveness classification exists today only in the 001 skill client, as a keyword pattern at `openclaw-skills/octoally_research_session.ts:209`. This feature moves that classification into the server so it can be enforced, and the client keeps calling it for its own display purposes. This is new server work, not reuse.
+- Prompt destructiveness classification exists today only in the 001 skill client, as a keyword pattern at `integration-client/octoally_research_session.ts:209`. This feature moves that classification into the server so it can be enforced, and the client keeps calling it for its own display purposes. This is new server work, not reuse.
 - One MCP server process per harness is acceptable. No shared daemon or multiplexing is required.
 
 ## Clarifications

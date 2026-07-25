@@ -10,7 +10,7 @@
 
 ## Base URL defect to fix first
 
-The shared client defaults to `http://localhost:3000` at `openclaw-skills/octoally_research_session.ts:201`, while the server listens on `42010`.
+The shared client defaults to `http://localhost:3000` at `integration-client/octoally_research_session.ts:201`, while the server listens on `42010`.
 The client reads no environment variable, so the default never resolves to a running server and a caller that omits `baseUrl` fails to connect.
 
 Groundwork task: resolve the base URL as `OCTOALLY_BASE_URL`, then `PORT`, then `http://127.0.0.1:42010`.

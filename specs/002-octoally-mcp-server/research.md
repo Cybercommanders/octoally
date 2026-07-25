@@ -74,7 +74,7 @@ The six planned tools cover this surface with no new endpoints required, apart f
 
 ## R5. What can be reused from feature 001?
 
-`openclaw-skills/octoally_research_session.ts` is 702 lines and already contains:
+`integration-client/octoally_research_session.ts` is 702 lines and already contains:
 
 - an HTTP client over the endpoints in R4
 - session status normalization from record status and process state to a single normalized status

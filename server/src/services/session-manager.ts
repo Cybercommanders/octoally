@@ -122,13 +122,9 @@ export interface Session {
   terminal_cols: number | null;
 }
 
-export interface SessionControllerMetadata {
-  kind: string;
-  skill_name: string;
-  channel_id?: string | null;
-  message_id?: string | null;
-  request_id: string;
-}
+import type { SessionControllerMetadata } from './session-records.js';
+
+export type { SessionControllerMetadata };
 
 export interface CreateSessionMetadata {
   requestedBy?: 'ui' | 'openclaw' | 'api';

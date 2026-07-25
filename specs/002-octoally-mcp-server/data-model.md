@@ -85,7 +85,7 @@ New, computed server-side, not persisted.
 | `destructive_choices` | `string[]` | Choices matching the destructive pattern |
 | `is_destructive` | `boolean` | True when the prompt text or any choice matches |
 
-The classification rule is the keyword pattern currently living at `openclaw-skills/octoally_research_session.ts:209`.
+The classification rule is the keyword pattern currently living at `integration-client/octoally_research_session.ts:209`.
 It moves into `server/src/services/prompt-destructiveness.ts` and becomes the single source of truth for enforcement.
 The client keeps its own copy for display, so a harness sees the assessment before it acts, but the client copy is advisory.
 

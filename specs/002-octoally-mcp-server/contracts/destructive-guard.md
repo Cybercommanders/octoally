@@ -7,7 +7,7 @@
 Feature 001 FR-014 requires that destructive prompts are never auto-confirmed.
 Today that requirement is met by the skill client only.
 
-- The keyword pattern lives at `openclaw-skills/octoally_research_session.ts:209`.
+- The keyword pattern lives at `integration-client/octoally_research_session.ts:209`.
 - The refusal lives at lines 394 to 399 of the same file, gated on `allowDestructiveConfirmation`.
 - A search of `server/src` for destructive handling finds only test fixtures.
 

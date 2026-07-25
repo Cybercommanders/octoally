@@ -12,12 +12,21 @@ export type SessionCliType = 'claude' | 'codex';
 export type LockBehavior = 'reject' | 'ignore';
 export type TerminalSessionStatus = 'completed' | 'failed' | 'cancelled';
 
+/**
+ * Single declaration of controller metadata. `session-manager` re-exports this
+ * rather than declaring its own copy: the type carries a validation rule, and a
+ * rule attached to only one of two declarations is not a rule.
+ *
+ * `skill_name` and `request_id` are required because the session create route
+ * already rejects a controller that omits either, so the lax variant that used
+ * to live here described a request the server never accepted.
+ */
 export interface SessionControllerMetadata {
   kind: string;
-  skill_name?: string;
+  skill_name: string;
   channel_id?: string | null;
   message_id?: string | null;
-  request_id?: string;
+  request_id: string;
 }
 
 export interface SessionRecord {

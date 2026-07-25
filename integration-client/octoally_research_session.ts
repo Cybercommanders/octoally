@@ -198,7 +198,36 @@ export class OctoAllyRequestError extends Error {
   }
 }
 
-const DEFAULT_BASE_URL = 'http://localhost:3000';
+/** Matches the OctoAlly server default in server/src/config.ts. */
+const DEFAULT_PORT = 42010;
+
+/** Fallback used when neither OCTOALLY_BASE_URL nor PORT is set. */
+export const DEFAULT_BASE_URL = `http://127.0.0.1:${DEFAULT_PORT}`;
+
+function stripTrailingSlashes(value: string): string {
+  return value.replace(/\/+$/, '');
+}
+
+/**
+ * Resolve the OctoAlly base URL: OCTOALLY_BASE_URL, then PORT, then the
+ * server's own default port.
+ *
+ * A harness supplies configuration through the environment rather than
+ * constructor options, so an unreachable hard-coded default is not a
+ * cosmetic problem: it is the difference between connecting and not.
+ */
+export function resolveBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+  const explicit = env.OCTOALLY_BASE_URL?.trim();
+  if (explicit) return stripTrailingSlashes(explicit);
+
+  const port = Number.parseInt(env.PORT ?? '', 10);
+  if (Number.isInteger(port) && port > 0 && port < 65536) {
+    return `http://127.0.0.1:${port}`;
+  }
+
+  return DEFAULT_BASE_URL;
+}
+
 const DEFAULT_PROMPT_LINES = 40;
 const DEFAULT_MONITOR_LINES = 80;
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -214,7 +243,8 @@ export class OctoAllyClient {
   private readonly fetchImpl: typeof fetch;
 
   constructor(options: OctoAllyClientOptions = {}) {
-    this.baseUrl = options.baseUrl?.replace(/\/+$/, '') || DEFAULT_BASE_URL;
+    const explicit = options.baseUrl ? stripTrailingSlashes(options.baseUrl) : '';
+    this.baseUrl = explicit || resolveBaseUrl();
     this.fetchImpl = options.fetchImpl ?? fetch;
   }
 

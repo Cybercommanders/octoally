@@ -8,7 +8,9 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc && cp -r src/data/agents dist/data/ && cp src/data/statusline.sh dist/data/",
-    "start": "env NODE_ENV=production node dist/index.js"
+    "start": "env NODE_ENV=production node dist/index.js",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.0",
