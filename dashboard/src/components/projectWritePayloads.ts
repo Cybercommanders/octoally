@@ -5,8 +5,9 @@ export interface ProjectFormValues {
   path: string;
   description: string;
   defaultWebUrl: string;
-  rufloPrompt: string;
+  sessionPrompt: string;
   openclawPrompt: string;
+  color: string;
 }
 
 export function buildProjectCreatePayload(values: ProjectFormValues) {
@@ -14,9 +15,10 @@ export function buildProjectCreatePayload(values: ProjectFormValues) {
     name: values.name,
     path: values.path,
     description: values.description,
-    ruflo_prompt: values.rufloPrompt,
+    session_prompt: values.sessionPrompt,
     openclaw_prompt: values.openclawPrompt,
     default_web_url: values.defaultWebUrl || undefined,
+    color: values.color || '',
   };
 }
 
@@ -25,9 +27,10 @@ export function buildProjectUpdatePayload(project: Project, values: ProjectFormV
     name?: string;
     path?: string;
     description?: string;
-    ruflo_prompt?: string | null;
+    session_prompt?: string | null;
     openclaw_prompt?: string | null;
     default_web_url?: string | null;
+    color?: string;
   } = {};
 
   if (values.name !== project.name) fields.name = values.name;
@@ -35,12 +38,14 @@ export function buildProjectUpdatePayload(project: Project, values: ProjectFormV
   if (values.defaultWebUrl !== (project.default_web_url || '')) {
     fields.default_web_url = values.defaultWebUrl || null;
   }
-  if (values.rufloPrompt !== (project.ruflo_prompt || '')) {
-    fields.ruflo_prompt = values.rufloPrompt || null;
+  if (values.sessionPrompt !== (project.session_prompt || '')) {
+    fields.session_prompt = values.sessionPrompt || null;
   }
   if (values.openclawPrompt !== (project.openclaw_prompt || '')) {
     fields.openclaw_prompt = values.openclawPrompt || null;
   }
+  // Always send color so a color-only edit still saves.
+  fields.color = values.color || '';
 
   return fields;
 }

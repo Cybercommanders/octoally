@@ -13,5 +13,7 @@
     "forceConsistentCasingInFileNames": true
   },
   "include": ["src"],
-  "exclude": ["node_modules", "dist"]
+  /* Tests run under `bun test`, which supplies `bun:test` / `bun:sqlite` at
+     runtime. They are not emitted to dist, so the build does not typecheck them. */
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts", "tests"]
 }

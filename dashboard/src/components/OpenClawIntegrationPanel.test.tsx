@@ -10,10 +10,12 @@ const project: Project = {
   name: 'openclaw-bridge',
   path: '/tmp/openclaw-bridge',
   description: 'Session bridge',
-  ruflo_prompt: 'Use TDD',
+  session_prompt: 'Use TDD',
   openclaw_prompt: 'Confirm destructive actions',
   default_web_url: null,
   created_at: '2026-03-27T00:00:00Z',
+  skip_permissions: 0,
+  color: '',
 };
 
 const baseSession: Session = {

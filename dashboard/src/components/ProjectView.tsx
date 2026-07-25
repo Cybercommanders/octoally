@@ -1579,7 +1579,10 @@ export function ProjectView({ projectId, projectPath, projectName: _projectName,
                           <span className={`font-medium shrink-0 ${isExpanded ? 'text-sm' : 'text-xs'}`} style={{ color: 'var(--text-primary)' }}>
                             {term.label}
                           </span>
-                          {s && <SessionBadges session={s} compact />}
+                          {(() => {
+                            const s = sessionLookup.get(term.id);
+                            return s ? <SessionBadges session={s} compact /> : null;
+                          })()}
                           <span className={`truncate min-w-0 ml-auto ${isExpanded ? 'text-xs ml-2' : 'text-[10px]'}`} style={{ color: 'var(--text-secondary)' }}>
                             {projectSessions.find((s) => s.id === term.id)?.task || 'Terminal'}
                           </span>
