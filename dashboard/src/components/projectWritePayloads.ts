@@ -23,6 +23,7 @@ export function buildProjectCreatePayload(values: ProjectFormValues) {
 export function buildProjectUpdatePayload(project: Project, values: ProjectFormValues) {
   const fields: {
     name?: string;
+    path?: string;
     description?: string;
     ruflo_prompt?: string | null;
     openclaw_prompt?: string | null;
