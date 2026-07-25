@@ -96,7 +96,7 @@ export function OpenClawIntegrationPanel({
               </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-1">
-              <PromptStatus label="ruflo_prompt" configured={state.hasRufloPrompt} />
+              <PromptStatus label="session_prompt" configured={state.hasRufloPrompt} />
               <PromptStatus label="openclaw_prompt" configured={state.hasOpenClawPrompt} />
             </div>
           </div>

@@ -50,7 +50,7 @@ export function buildOpenClawIntegrationState(
     ) ?? null;
 
   return {
-    hasRufloPrompt: Boolean(project.ruflo_prompt?.trim()),
+    hasRufloPrompt: Boolean(project.session_prompt?.trim()),
     hasOpenClawPrompt: Boolean(project.openclaw_prompt?.trim()),
     locked: Boolean(lockOwner),
     lockOwner,
