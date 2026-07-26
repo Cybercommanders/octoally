@@ -118,7 +118,12 @@ export interface LaunchOptions {
   agentType?: string;
   applyProjectPrompts?: boolean;
   promptContext?: 'default' | 'openclaw';
-  requestedBy?: 'ui' | 'openclaw' | 'api';
+  /**
+   * How the request reached OctoAlly. `mcp` covers every harness arriving
+   * through the MCP server; the harness itself is named by `controller.kind`.
+   * Mirrors the server union in server/src/services/session-records.ts.
+   */
+  requestedBy?: 'ui' | 'openclaw' | 'api' | 'mcp';
   controller?: SessionControllerMetadata;
   lockBehavior?: 'reject' | 'ignore';
   client?: OctoAllyClient;
@@ -158,6 +163,30 @@ export interface LaunchLockedResult {
 }
 
 export type LaunchResult = LaunchSuccessResult | LaunchLockedResult;
+
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  path: string;
+  [key: string]: unknown;
+}
+
+export interface ProjectListResponse {
+  projects: ProjectSummary[];
+}
+
+export interface SessionSummary {
+  id: string;
+  status: string;
+  lock_key?: string | null;
+  write_capable?: number | null;
+  project_id?: string | null;
+  [key: string]: unknown;
+}
+
+export interface SessionListResponse {
+  sessions: SessionSummary[];
+}
 
 export interface OctoAllyClientOptions {
   baseUrl?: string;
@@ -252,6 +281,20 @@ export class OctoAllyClient {
     return this.request<SessionStateResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/state`);
   }
 
+  /**
+   * List configured projects. Needed by harnesses with no access to the
+   * dashboard, which would otherwise have to be handed workspace paths by
+   * hand - the copy-paste workflow feature 001 set out to remove.
+   */
+  async listProjects(): Promise<ProjectListResponse> {
+    return this.request<ProjectListResponse>('/api/projects');
+  }
+
+  /** Active sessions, used to derive per-project lock state. */
+  async listSessions(): Promise<SessionListResponse> {
+    return this.request<SessionListResponse>('/api/sessions');
+  }
+
   async getStateOrNull(sessionId: string): Promise<SessionStateResponse | null> {
     return this.requestOrNull<SessionStateResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/state`);
   }
@@ -277,11 +320,25 @@ export class OctoAllyClient {
 
   async execute(
     sessionId: string,
-    payload: { input: string; timeout?: number; quiescenceMs?: number; stripAnsi?: boolean },
+    payload: {
+      input: string;
+      timeout?: number;
+      quiescenceMs?: number;
+      stripAnsi?: boolean;
+      /**
+       * Answers a prompt the server classified destructive. The server rejects
+       * such an answer with 409 unless this is set, so it must reflect an
+       * explicit operator decision rather than a retry.
+       */
+      confirmDestructive?: boolean;
+    },
   ): Promise<ExecuteResponse> {
+    const { confirmDestructive, ...rest } = payload;
     return this.request<ExecuteResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/execute`, {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(
+        confirmDestructive ? { ...rest, confirm_destructive: true } : rest,
+      ),
     });
   }
 

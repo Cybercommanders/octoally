@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "outDir": "dist",
+    "rootDir": "src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true,
+    "allowImportingTsExtensions": false
+  },
+  "include": ["src"],
+  /* Tests run under `bun test`, which supplies bun:test at runtime. */
+  "exclude": ["node_modules", "dist", "tests", "src/**/*.test.ts"]
+}

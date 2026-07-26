@@ -80,22 +80,22 @@
 
 ## Phase 3: MCP package
 
-- [ ] T029 **Approval gate**: confirm the `@modelcontextprotocol/sdk` dependency with the repository owner before installing. Do not proceed without it.
-- [ ] T030 Scaffold `mcp-server/` with `package.json`, `tsconfig.json`, and a build producing `dist/index.js`
-- [ ] T031 Implement `mcp-server/src/index.ts` as a stdio MCP server named `octoally`, reading `OCTOALLY_BASE_URL` and `OCTOALLY_CONTROLLER_KIND`
-- [ ] T032 Implement `mcp-server/src/schemas.ts` using REST field names verbatim, per `contracts/mcp-tools.md`
-- [ ] T033 Implement `mcp-server/src/results.ts` shaping structured results, including the lock conflict and the shared failure shapes
-- [ ] T034 [P] [US5] Implement `octoally_list_projects` over `GET /api/projects`, including lock state per project
-- [ ] T035 [US1] Implement `octoally_launch_session`, always setting `requested_by` to `mcp` and never accepting it from the caller
-- [ ] T036 [US2] Return workspace lock conflicts as successful tool results with `ok: false` and remediation, never as protocol errors
-- [ ] T037 [P] [US3] Implement `octoally_session_status` including the prompt classification block
-- [ ] T038 [US3] Implement `octoally_session_monitor` with an opaque cursor, a clamped `max_wait_ms`, and a `wait_clamped` flag distinguishing a clamp from a timeout
-- [ ] T039 [US4] Implement `octoally_session_continue` passing `confirm_destructive` through, and rendering the 409 as a structured refusal that does not suggest a bypass
-- [ ] T040 [P] Implement `octoally_session_cancel`
-- [ ] T041 Emit a lifecycle log line for every tool invocation with the calling controller kind
-- [ ] T042 [P] Unit tests for tool schemas and for client mapping in `mcp-server/tests/tools.test.ts`
-- [ ] T043 [P] Unit test: unreachable OctoAlly produces `octoally_unreachable` rather than a thrown protocol error
-- [ ] T044 [P] Unit test: unknown session ID produces `session_not_found` rather than a thrown protocol error
+- [x] T029 **Approval gate**: confirm the `@modelcontextprotocol/sdk` dependency with the repository owner before installing. Do not proceed without it.
+- [x] T030 Scaffold `mcp-server/` with `package.json`, `tsconfig.json`, and a build producing `dist/index.js`
+- [x] T031 Implement `mcp-server/src/index.ts` as a stdio MCP server named `octoally`, reading `OCTOALLY_BASE_URL` and `OCTOALLY_CONTROLLER_KIND`
+- [x] T032 Implement `mcp-server/src/schemas.ts` using REST field names verbatim, per `contracts/mcp-tools.md`
+- [x] T033 Implement `mcp-server/src/results.ts` shaping structured results, including the lock conflict and the shared failure shapes
+- [x] T034 [P] [US5] Implement `octoally_list_projects` over `GET /api/projects`, including lock state per project
+- [x] T035 [US1] Implement `octoally_launch_session`, always setting `requested_by` to `mcp` and never accepting it from the caller
+- [x] T036 [US2] Return workspace lock conflicts as successful tool results with `ok: false` and remediation, never as protocol errors
+- [x] T037 [P] [US3] Implement `octoally_session_status` including the prompt classification block
+- [x] T038 [US3] Implement `octoally_session_monitor` with an opaque cursor, a clamped `max_wait_ms`, and a `wait_clamped` flag distinguishing a clamp from a timeout
+- [x] T039 [US4] Implement `octoally_session_continue` passing `confirm_destructive` through, and rendering the 409 as a structured refusal that does not suggest a bypass
+- [x] T040 [P] Implement `octoally_session_cancel`
+- [x] T041 Emit a lifecycle log line for every tool invocation with the calling controller kind
+- [x] T042 [P] Unit tests for tool schemas and for client mapping in `mcp-server/tests/tools.test.ts`
+- [x] T043 [P] Unit test: unreachable OctoAlly produces `octoally_unreachable` rather than a thrown protocol error
+- [x] T044 [P] Unit test: unknown session ID produces `session_not_found` rather than a thrown protocol error
 
 **Checkpoint**: Six tools implemented against the shared client, with no second HTTP layer added.
 

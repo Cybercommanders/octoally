@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "outDir": "dist",
+    "rootDir": ".",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "declaration": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["octoally_research_session.ts", "research_claude.ts", "research_codex.ts"],
+  /* Tests run under `bun test` against the TypeScript sources directly. */
+  "exclude": ["node_modules", "dist", "tests"]
+}

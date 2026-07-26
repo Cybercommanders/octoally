@@ -44,3 +44,7 @@ CLAUDE.local.md
 .octoally-pro/
 # OctoAlly-generated agents manifest
 AGENTS.md
+
+# Built output for the shared client and MCP server packages
+integration-client/dist/
+mcp-server/dist/
