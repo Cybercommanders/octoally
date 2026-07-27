@@ -9,15 +9,44 @@ import {
 } from './workspace-lock.js';
 
 export type SessionCliType = 'claude' | 'codex';
+
+/**
+ * How the request reached OctoAlly, not which harness sent it.
+ *
+ * `mcp` covers every harness arriving through the MCP server; the harness
+ * itself is named by `controller.kind`. Splitting the two keeps this union
+ * closed instead of growing one value per harness. `openclaw` predates the
+ * MCP server and stays valid so stored rows keep their meaning.
+ */
+export type RequestedBy = 'ui' | 'openclaw' | 'api' | 'mcp';
+
+/** Thrown when an MCP-originated launch omits the calling harness. */
+export class ControllerKindRequiredError extends Error {
+  readonly code = 'controller_kind_required';
+
+  constructor() {
+    super('controller_kind_required: requested_by "mcp" requires a non-empty controller.kind');
+    this.name = 'ControllerKindRequiredError';
+  }
+}
 export type LockBehavior = 'reject' | 'ignore';
 export type TerminalSessionStatus = 'completed' | 'failed' | 'cancelled';
 
+/**
+ * Single declaration of controller metadata. `session-manager` re-exports this
+ * rather than declaring its own copy: the type carries a validation rule, and a
+ * rule attached to only one of two declarations is not a rule.
+ *
+ * `skill_name` and `request_id` are required because the session create route
+ * already rejects a controller that omits either, so the lax variant that used
+ * to live here described a request the server never accepted.
+ */
 export interface SessionControllerMetadata {
   kind: string;
-  skill_name?: string;
+  skill_name: string;
   channel_id?: string | null;
   message_id?: string | null;
-  request_id?: string;
+  request_id: string;
 }
 
 export interface SessionRecord {
@@ -49,7 +78,7 @@ export interface CreateSessionRecordInput {
   projectId?: string;
   task: string;
   cliType?: SessionCliType;
-  requestedBy?: 'ui' | 'openclaw' | 'api';
+  requestedBy?: RequestedBy;
   controller?: SessionControllerMetadata | null;
   lockBehavior?: LockBehavior;
   writeCapable?: boolean;
@@ -77,6 +106,13 @@ export function createSessionRecord(
   db: Database.Database,
   input: CreateSessionRecordInput,
 ): CreateSessionRecordResult {
+  // Enforced here rather than only at the route: the invariant has to hold for
+  // every caller of this function, and a rule that lives in one entry point is
+  // not a rule. Checked before the transaction so nothing is written.
+  if (input.requestedBy === 'mcp' && !input.controller?.kind?.trim()) {
+    throw new ControllerKindRequiredError();
+  }
+
   const transaction = db.transaction((): CreateSessionRecordResult => {
     const writeCapable = input.writeCapable ?? true;
     const lockBehavior = input.lockBehavior ?? 'reject';

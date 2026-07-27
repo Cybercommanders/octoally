@@ -7,6 +7,11 @@ import { isSessionActive, writeToSession, getActiveSession, querySessionOutputSi
 import { RESIZE_MARKER } from '../services/session-manager.js';
 import { getTracker, getOrCreateTracker } from '../services/session-state.js';
 import type { ExecuteResult, SessionState } from '../services/session-state.js';
+import {
+  classifyPrompt,
+  requiresDestructiveConfirmation,
+} from '../services/prompt-destructiveness.js';
+import { logLifecycleEvent } from '../services/session-lifecycle-log.js';
 
 const DEFAULT_TIMEOUT = 30_000;
 const DEFAULT_QUIESCENCE = 2000;
@@ -204,6 +209,43 @@ export const agentRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: 'input is required and must be a string' });
     }
 
+    // Destructive-prompt guard (002 FR-012, enforcing 001 FR-014).
+    //
+    // Enforced here, in the API layer, because the caller may be an autonomous
+    // model composing its own request. A tool schema or a cooperative client
+    // cannot withhold a payload the API is willing to accept.
+    const promptClassification = classifyPrompt(
+      tracker.state.promptType,
+      tracker.state.choices,
+      tracker.outputSinceInput ?? '',
+    );
+
+    if (requiresDestructiveConfirmation(input, promptClassification, body.confirm_destructive === true)) {
+      // Attribute the refusal to whoever asked, so MCP-originated activity is
+      // visible in the same stream as UI and OpenClaw activity (001 FR-015).
+      const record = getSession(id) as
+        | { controller_kind?: string | null; requested_by?: string | null; correlation_id?: string | null }
+        | null;
+
+      logLifecycleEvent({
+        event: 'destructive_confirmation_refused',
+        session_id: id,
+        controller_kind: record?.controller_kind ?? null,
+        requested_by: record?.requested_by ?? null,
+        correlation_id: record?.correlation_id ?? null,
+        detail: {
+          prompt_type: promptClassification?.prompt_type ?? null,
+          destructive_choices: promptClassification?.destructive_choices ?? [],
+        },
+      });
+
+      return reply.status(409).send({
+        error: 'destructive_confirmation_required',
+        message: 'Operator approval is required to confirm a destructive prompt.',
+        prompt: promptClassification,
+      });
+    }
+
     let waitFor: RegExp | undefined;
     if (body.waitFor) {
       try {
@@ -254,6 +296,20 @@ export const agentRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(404).send({ error: 'Session tracker not found' });
     }
     const cancelled = tracker.cancelExecute();
+
+    const record = getSession(id) as
+      | { controller_kind?: string | null; requested_by?: string | null; correlation_id?: string | null }
+      | null;
+
+    logLifecycleEvent({
+      event: 'session_cancelled',
+      session_id: id,
+      controller_kind: record?.controller_kind ?? null,
+      requested_by: record?.requested_by ?? null,
+      correlation_id: record?.correlation_id ?? null,
+      detail: { scope: 'execute_request', cancelled },
+    });
+
     return { ok: cancelled };
   });
 

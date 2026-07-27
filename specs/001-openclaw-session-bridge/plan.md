@@ -85,6 +85,8 @@ openclaw-skills/
 
 **Structure Decision**: Web application layout following existing OctoAlly conventions (server/ + dashboard/ separation). OpenClaw skills are a separate package in `openclaw-skills/` since they run inside the OpenClaw runtime, not OctoAlly.
 
+> **Superseded by feature 002**: `openclaw-skills/` was renamed to `integration-client/` in the 002 groundwork phase, because the MCP server became a second consumer of the same client and the old directory name described only one of them. Paths in this document refer to the layout as it stood when 001 shipped.
+
 ## Complexity Tracking
 
 No constitution violations to justify — design follows minimal-change principles.

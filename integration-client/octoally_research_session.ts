@@ -118,7 +118,12 @@ export interface LaunchOptions {
   agentType?: string;
   applyProjectPrompts?: boolean;
   promptContext?: 'default' | 'openclaw';
-  requestedBy?: 'ui' | 'openclaw' | 'api';
+  /**
+   * How the request reached OctoAlly. `mcp` covers every harness arriving
+   * through the MCP server; the harness itself is named by `controller.kind`.
+   * Mirrors the server union in server/src/services/session-records.ts.
+   */
+  requestedBy?: 'ui' | 'openclaw' | 'api' | 'mcp';
   controller?: SessionControllerMetadata;
   lockBehavior?: 'reject' | 'ignore';
   client?: OctoAllyClient;
@@ -159,6 +164,30 @@ export interface LaunchLockedResult {
 
 export type LaunchResult = LaunchSuccessResult | LaunchLockedResult;
 
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  path: string;
+  [key: string]: unknown;
+}
+
+export interface ProjectListResponse {
+  projects: ProjectSummary[];
+}
+
+export interface SessionSummary {
+  id: string;
+  status: string;
+  lock_key?: string | null;
+  write_capable?: number | null;
+  project_id?: string | null;
+  [key: string]: unknown;
+}
+
+export interface SessionListResponse {
+  sessions: SessionSummary[];
+}
+
 export interface OctoAllyClientOptions {
   baseUrl?: string;
   fetchImpl?: typeof fetch;
@@ -198,7 +227,36 @@ export class OctoAllyRequestError extends Error {
   }
 }
 
-const DEFAULT_BASE_URL = 'http://localhost:3000';
+/** Matches the OctoAlly server default in server/src/config.ts. */
+const DEFAULT_PORT = 42010;
+
+/** Fallback used when neither OCTOALLY_BASE_URL nor PORT is set. */
+export const DEFAULT_BASE_URL = `http://127.0.0.1:${DEFAULT_PORT}`;
+
+function stripTrailingSlashes(value: string): string {
+  return value.replace(/\/+$/, '');
+}
+
+/**
+ * Resolve the OctoAlly base URL: OCTOALLY_BASE_URL, then PORT, then the
+ * server's own default port.
+ *
+ * A harness supplies configuration through the environment rather than
+ * constructor options, so an unreachable hard-coded default is not a
+ * cosmetic problem: it is the difference between connecting and not.
+ */
+export function resolveBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+  const explicit = env.OCTOALLY_BASE_URL?.trim();
+  if (explicit) return stripTrailingSlashes(explicit);
+
+  const port = Number.parseInt(env.PORT ?? '', 10);
+  if (Number.isInteger(port) && port > 0 && port < 65536) {
+    return `http://127.0.0.1:${port}`;
+  }
+
+  return DEFAULT_BASE_URL;
+}
+
 const DEFAULT_PROMPT_LINES = 40;
 const DEFAULT_MONITOR_LINES = 80;
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -214,12 +272,27 @@ export class OctoAllyClient {
   private readonly fetchImpl: typeof fetch;
 
   constructor(options: OctoAllyClientOptions = {}) {
-    this.baseUrl = options.baseUrl?.replace(/\/+$/, '') || DEFAULT_BASE_URL;
+    const explicit = options.baseUrl ? stripTrailingSlashes(options.baseUrl) : '';
+    this.baseUrl = explicit || resolveBaseUrl();
     this.fetchImpl = options.fetchImpl ?? fetch;
   }
 
   async getState(sessionId: string): Promise<SessionStateResponse> {
     return this.request<SessionStateResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/state`);
+  }
+
+  /**
+   * List configured projects. Needed by harnesses with no access to the
+   * dashboard, which would otherwise have to be handed workspace paths by
+   * hand - the copy-paste workflow feature 001 set out to remove.
+   */
+  async listProjects(): Promise<ProjectListResponse> {
+    return this.request<ProjectListResponse>('/api/projects');
+  }
+
+  /** Active sessions, used to derive per-project lock state. */
+  async listSessions(): Promise<SessionListResponse> {
+    return this.request<SessionListResponse>('/api/sessions');
   }
 
   async getStateOrNull(sessionId: string): Promise<SessionStateResponse | null> {
@@ -247,11 +320,25 @@ export class OctoAllyClient {
 
   async execute(
     sessionId: string,
-    payload: { input: string; timeout?: number; quiescenceMs?: number; stripAnsi?: boolean },
+    payload: {
+      input: string;
+      timeout?: number;
+      quiescenceMs?: number;
+      stripAnsi?: boolean;
+      /**
+       * Answers a prompt the server classified destructive. The server rejects
+       * such an answer with 409 unless this is set, so it must reflect an
+       * explicit operator decision rather than a retry.
+       */
+      confirmDestructive?: boolean;
+    },
   ): Promise<ExecuteResponse> {
+    const { confirmDestructive, ...rest } = payload;
     return this.request<ExecuteResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/execute`, {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify(
+        confirmDestructive ? { ...rest, confirm_destructive: true } : rest,
+      ),
     });
   }
 
@@ -389,6 +476,12 @@ async function continueSession(
   const client = options.client ?? new OctoAllyClient();
   const currentStatus = await status(sessionId, { client });
 
+  // ADVISORY ONLY. Since feature 002 the OctoAlly server enforces this rule
+  // itself (409 destructive_confirmation_required) in the execute route, and
+  // the server's answer is authoritative. This check stays because it gives
+  // the caller feedback without a round trip and a clearer error message, but
+  // it is not the control: a caller that skips this client reaches the same
+  // guard on the server. See specs/002-octoally-mcp-server/contracts/destructive-guard.md.
   if (
     currentStatus.waitingForInput
     && currentStatus.prompt?.isDestructive

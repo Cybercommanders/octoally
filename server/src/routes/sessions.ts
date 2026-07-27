@@ -13,11 +13,11 @@ import { getTracker } from '../services/session-state.js';
 import { getDb } from '../db/index.js';
 import type { SessionControllerMetadata } from '../services/session-manager.js';
 import { createSessionRecord } from '../services/session-records.js';
+import type { RequestedBy } from '../services/session-records.js';
 import { getProjectPromptColumn } from '../services/project-prompt-compat.js';
 import { logLifecycleEvent } from '../services/session-lifecycle-log.js';
 
 type PromptContext = 'default' | 'openclaw';
-type RequestedBy = 'ui' | 'openclaw' | 'api';
 type LockBehavior = 'reject' | 'ignore';
 
 interface SessionProjectPrompts {
@@ -121,8 +121,14 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: 'prompt_context must be one of: default, openclaw' });
     }
 
-    if (requested_by !== undefined && requested_by !== 'ui' && requested_by !== 'openclaw' && requested_by !== 'api') {
-      return reply.status(400).send({ error: 'requested_by must be one of: ui, openclaw, api' });
+    if (
+      requested_by !== undefined &&
+      requested_by !== 'ui' &&
+      requested_by !== 'openclaw' &&
+      requested_by !== 'api' &&
+      requested_by !== 'mcp'
+    ) {
+      return reply.status(400).send({ error: 'requested_by must be one of: ui, openclaw, api, mcp' });
     }
 
     if (lock_behavior !== undefined && lock_behavior !== 'reject' && lock_behavior !== 'ignore') {
@@ -162,7 +168,19 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const projectPath = project_path;
-    const requestedBy: RequestedBy = requested_by === 'openclaw' || requested_by === 'api' ? requested_by : 'ui';
+    const requestedBy: RequestedBy =
+      requested_by === 'openclaw' || requested_by === 'api' || requested_by === 'mcp'
+        ? requested_by
+        : 'ui';
+
+    // An MCP-originated session must name the harness that sent it, otherwise
+    // the audit trail records that something arrived over MCP but not what.
+    if (requestedBy === 'mcp' && !controller?.kind?.trim()) {
+      return reply.status(400).send({
+        error: 'controller_kind_required',
+        message: 'requested_by "mcp" requires controller.kind identifying the calling harness',
+      });
+    }
     const promptContext: PromptContext = prompt_context === 'openclaw' ? 'openclaw' : 'default';
     const applyProjectPrompts = apply_project_prompts === true;
     const writeCapable = mode !== 'terminal';

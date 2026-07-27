@@ -1,0 +1,23 @@
+{
+  "name": "@octoally/integration-client",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared OctoAlly session client, consumed by the OpenClaw skill and the MCP server",
+  "main": "dist/octoally_research_session.js",
+  "types": "dist/octoally_research_session.d.ts",
+  "exports": {
+    ".": "./dist/octoally_research_session.js",
+    "./research_claude": "./dist/research_claude.js",
+    "./research_codex": "./dist/research_codex.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.15",
+    "typescript": "^5.7.0"
+  }
+}
