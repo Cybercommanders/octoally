@@ -113,6 +113,18 @@ export function initDb(): void {
   // ruflo deprecation: seed disposition setting
   try { db.exec("INSERT OR IGNORE INTO settings (key, value) VALUES ('ruflo_disposition', 'undecided')"); } catch {}
 
+  // OpenClaw session bridge columns (T005)
+  try { db.exec("ALTER TABLE sessions ADD COLUMN requested_by TEXT DEFAULT 'ui'"); } catch {}
+  try { db.exec('ALTER TABLE sessions ADD COLUMN controller_kind TEXT'); } catch {}
+  try { db.exec('ALTER TABLE sessions ADD COLUMN controller_meta_json TEXT'); } catch {}
+  try { db.exec('ALTER TABLE sessions ADD COLUMN lock_key TEXT'); } catch {}
+  try { db.exec('ALTER TABLE sessions ADD COLUMN write_capable INTEGER DEFAULT 1'); } catch {}
+  try { db.exec('ALTER TABLE sessions ADD COLUMN prompt_context TEXT'); } catch {}
+  try { db.exec('ALTER TABLE sessions ADD COLUMN applied_project_prompts INTEGER DEFAULT 0'); } catch {}
+  try { db.exec('CREATE INDEX IF NOT EXISTS idx_sessions_lock_key ON sessions(lock_key)'); } catch {}
+  // Correlation ID for cross-event log tracing (T018/T048)
+  try { db.exec('ALTER TABLE sessions ADD COLUMN correlation_id TEXT'); } catch {}
+
   // Note: orphaned process cleanup is handled by cleanupStaleRunningSessions()
   // which is called after initDb() in index.ts — it kills processes AND marks DB records.
 

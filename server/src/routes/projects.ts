@@ -9,6 +9,11 @@ import { existsSync, readFileSync, writeFileSync, readdirSync, lstatSync, unlink
 import { promisify } from 'util';
 import { getSetting } from './settings.js';
 import { installDefaultAgents } from '../data/default-agents.js';
+import {
+  getProjectColumnNames,
+  getProjectPromptColumn,
+  withProjectPromptAliases,
+} from '../services/project-prompt-compat.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -235,6 +240,7 @@ export interface Project {
   path: string;
   description: string | null;
   session_prompt: string | null;
+  ruflo_prompt?: string | null;
   openclaw_prompt: string | null;
   default_web_url: string | null;
   skip_permissions: number;
@@ -263,7 +269,14 @@ const PROJECTS_FILE = join(OCTOALLY_DIR, 'projects.json');
 /** Export current DB projects to the config file (for portability across DB resets) */
 async function exportToConfig(): Promise<void> {
   const db = getDb();
-  const rows = db.prepare('SELECT name, path, description, session_prompt, openclaw_prompt, default_web_url FROM projects ORDER BY name COLLATE NOCASE').all();
+  const promptColumn = getProjectPromptColumn(db);
+  const columns = getProjectColumnNames(db);
+  const defaultWebUrlExpr = columns.has('default_web_url') ? 'default_web_url' : 'NULL AS default_web_url';
+  const rows = db.prepare(`
+    SELECT name, path, description, ${promptColumn} AS session_prompt, openclaw_prompt, ${defaultWebUrlExpr}
+    FROM projects
+    ORDER BY name COLLATE NOCASE
+  `).all();
   await mkdir(OCTOALLY_DIR, { recursive: true });
   await writeFile(PROJECTS_FILE, JSON.stringify({ projects: rows }, null, 2), 'utf-8');
 }
@@ -289,11 +302,26 @@ export async function initProjects(): Promise<void> {
     const configs = Array.isArray(data.projects) ? data.projects : [];
 
     let imported = 0;
+    const promptColumn = getProjectPromptColumn(db);
+    const columns = getProjectColumnNames(db);
     for (const p of configs) {
       if (!p.name || !p.path) continue;
       const id = nanoid(12);
-      db.prepare('INSERT INTO projects (id, name, path, description, session_prompt, openclaw_prompt, default_web_url) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .run(id, p.name, p.path, p.description || null, p.session_prompt || null, p.openclaw_prompt || null, p.default_web_url || null);
+      const insertColumns = ['id', 'name', 'path', 'description', promptColumn, 'openclaw_prompt'];
+      const values = [
+        id,
+        p.name,
+        p.path,
+        p.description || null,
+        p.session_prompt || p.ruflo_prompt || null,
+        p.openclaw_prompt || null,
+      ];
+      if (columns.has('default_web_url')) {
+        insertColumns.push('default_web_url');
+        values.push(p.default_web_url || null);
+      }
+      db.prepare(`INSERT INTO projects (${insertColumns.join(', ')}) VALUES (${insertColumns.map(() => '?').join(', ')})`)
+        .run(...values);
       imported++;
     }
     if (imported > 0) {
@@ -308,36 +336,57 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
   // List projects
   app.get('/projects', async () => {
     const db = getDb();
-    const projects = db.prepare('SELECT * FROM projects ORDER BY name COLLATE NOCASE').all();
+    const projects = (db.prepare('SELECT * FROM projects ORDER BY name COLLATE NOCASE').all() as Array<Record<string, unknown>>)
+      .map(withProjectPromptAliases);
     return { projects };
   });
 
   // Get single project
   app.get<{ Params: { id: string } }>('/projects/:id', async (req, reply) => {
     const db = getDb();
-    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id);
+    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id) as Record<string, unknown> | undefined;
     if (!project) return reply.status(404).send({ error: 'Project not found' });
-    return { project };
+    return { project: withProjectPromptAliases(project) };
   });
 
   // Create project
   app.post<{
-    Body: { name: string; path: string; description?: string; session_prompt?: string; openclaw_prompt?: string; default_web_url?: string; color?: string };
+    Body: { name: string; path: string; description?: string; session_prompt?: string; ruflo_prompt?: string; openclaw_prompt?: string; default_web_url?: string; color?: string };
   }>('/projects', async (req, reply) => {
-    const { name, description, session_prompt, openclaw_prompt, default_web_url, color } = req.body;
+    const { name, description, session_prompt, ruflo_prompt, openclaw_prompt, default_web_url, color } = req.body;
     const path = normalizeProjectPath(req.body.path);
     if (!name || !path) return reply.status(400).send({ error: 'name and path are required' });
 
     const db = getDb();
     const id = nanoid(12);
+    const promptColumn = getProjectPromptColumn(db);
+    const columns = getProjectColumnNames(db);
 
     const existing = db.prepare('SELECT id FROM projects WHERE path = ?').get(path);
     if (existing) return reply.status(409).send({ error: 'Project with this path already exists' });
 
-    db.prepare('INSERT INTO projects (id, name, path, description, session_prompt, openclaw_prompt, default_web_url, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(id, name, path, description || null, session_prompt || null, openclaw_prompt || null, default_web_url || null, color || '');
+    const insertColumns = ['id', 'name', 'path', 'description', promptColumn, 'openclaw_prompt'];
+    const values = [
+      id,
+      name,
+      path,
+      description || null,
+      session_prompt ?? ruflo_prompt ?? null,
+      openclaw_prompt || null,
+    ];
+    if (columns.has('default_web_url')) {
+      insertColumns.push('default_web_url');
+      values.push(default_web_url || null);
+    }
+    if (columns.has('color')) {
+      insertColumns.push('color');
+      values.push(color || '');
+    }
 
-    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+    db.prepare(`INSERT INTO projects (${insertColumns.join(', ')}) VALUES (${insertColumns.map(() => '?').join(', ')})`)
+      .run(...values);
+
+    const project = withProjectPromptAliases(db.prepare('SELECT * FROM projects WHERE id = ?').get(id) as Record<string, unknown>);
     await exportToConfig();
 
     // Ensure default agents are installed (no-op if marker exists)
@@ -349,11 +398,13 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
   // Update project
   app.patch<{
     Params: { id: string };
-    Body: { name?: string; path?: string; description?: string; session_prompt?: string | null; openclaw_prompt?: string | null; default_web_url?: string | null; skip_permissions?: number; color?: string };
+    Body: { name?: string; path?: string; description?: string; session_prompt?: string | null; ruflo_prompt?: string | null; openclaw_prompt?: string | null; default_web_url?: string | null; skip_permissions?: number; color?: string };
   }>('/projects/:id', async (req, reply) => {
     const db = getDb();
     const updates: string[] = [];
     const params: unknown[] = [];
+    const promptColumn = getProjectPromptColumn(db);
+    const columns = getProjectColumnNames(db);
 
     if (req.body.name) { updates.push('name = ?'); params.push(req.body.name); }
     // Repoint the project at a different working directory. Files are NOT moved —
@@ -370,11 +421,14 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
       updates.push('path = ?'); params.push(p);
     }
     if (req.body.description !== undefined) { updates.push('description = ?'); params.push(req.body.description); }
-    if (req.body.session_prompt !== undefined) { updates.push('session_prompt = ?'); params.push(req.body.session_prompt); }
+    if (req.body.session_prompt !== undefined || req.body.ruflo_prompt !== undefined) {
+      updates.push(`${promptColumn} = ?`);
+      params.push(req.body.session_prompt !== undefined ? req.body.session_prompt : req.body.ruflo_prompt);
+    }
     if (req.body.openclaw_prompt !== undefined) { updates.push('openclaw_prompt = ?'); params.push(req.body.openclaw_prompt); }
-    if (req.body.default_web_url !== undefined) { updates.push('default_web_url = ?'); params.push(req.body.default_web_url); }
-    if (req.body.skip_permissions !== undefined) { updates.push('skip_permissions = ?'); params.push(req.body.skip_permissions ? 1 : 0); }
-    if (req.body.color !== undefined) { updates.push('color = ?'); params.push(req.body.color); }
+    if (req.body.default_web_url !== undefined && columns.has('default_web_url')) { updates.push('default_web_url = ?'); params.push(req.body.default_web_url); }
+    if (req.body.skip_permissions !== undefined && columns.has('skip_permissions')) { updates.push('skip_permissions = ?'); params.push(req.body.skip_permissions ? 1 : 0); }
+    if (req.body.color !== undefined && columns.has('color')) { updates.push('color = ?'); params.push(req.body.color); }
 
     if (updates.length === 0) return reply.status(400).send({ error: 'Nothing to update' });
 
@@ -384,7 +438,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     const result = db.prepare(`UPDATE projects SET ${updates.join(', ')} WHERE id = ?`).run(...params);
     if (result.changes === 0) return reply.status(404).send({ error: 'Project not found' });
 
-    const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id);
+    const project = withProjectPromptAliases(db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id) as Record<string, unknown>);
     await exportToConfig();
 
     return { ok: true, project };

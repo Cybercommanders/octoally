@@ -5,6 +5,10 @@ import { api, type Project } from '../lib/api';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
+  buildProjectCreatePayload,
+  buildProjectUpdatePayload,
+} from './projectWritePayloads';
+import {
   Plus,
   FolderOpen,
   ChevronRight,
@@ -226,7 +230,15 @@ function ProjectForm({
 
   const createMutation = useMutation({
     mutationFn: () =>
-      api.projects.create({ name, path, description, default_web_url: defaultWebUrl || undefined, color: projectColor || undefined }),
+      api.projects.create(buildProjectCreatePayload({
+        name,
+        path,
+        description,
+        defaultWebUrl,
+        sessionPrompt,
+        openclawPrompt,
+        color: projectColor,
+      })),
     onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       onSubmit();
@@ -244,17 +256,17 @@ function ProjectForm({
 
   const updateMutation = useMutation({
     mutationFn: () => {
-      const fields: Record<string, string | number | null | undefined> = {};
-      if (name !== project!.name) fields.name = name;
+      const fields = buildProjectUpdatePayload(project!, {
+        name,
+        path: normalizePath(path),
+        description,
+        defaultWebUrl,
+        sessionPrompt,
+        openclawPrompt,
+        color: projectColor,
+      });
+      // Editable working directory (origin/main): only send path when it actually changed.
       if (normalizePath(path) !== normalizePath(project!.path)) fields.path = normalizePath(path);
-      if (description !== (project!.description || '')) fields.description = description;
-      if (defaultWebUrl !== (project!.default_web_url || '')) fields.default_web_url = defaultWebUrl || null;
-      if (sessionPrompt !== (project!.session_prompt || ''))
-        fields.session_prompt = sessionPrompt || null;
-      if (openclawPrompt !== (project!.openclaw_prompt || ''))
-        fields.openclaw_prompt = openclawPrompt || null;
-      // Always send color to ensure save works even if only color changed
-      fields.color = projectColor || '';
       return api.projects.update(project!.id, fields as any);
     },
     onSuccess: async () => {
@@ -492,6 +504,30 @@ function ProjectForm({
                 className={inputClass}
                 style={inputStyle}
               />
+            </div>
+
+            {/* Session prompts */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col">
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Session Prompt</label>
+                <textarea
+                  value={sessionPrompt}
+                  onChange={(e) => setSessionPrompt(e.target.value)}
+                  placeholder="System instructions prepended to every task for this project..."
+                  className={`${inputClass} resize-y flex-1`}
+                  style={{ ...inputStyle, minHeight: '80px' }}
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>OpenClaw Session Prompt</label>
+                <textarea
+                  value={openclawPrompt}
+                  onChange={(e) => setOpenclawPrompt(e.target.value)}
+                  placeholder="Additional instructions included when running via OpenClaw..."
+                  className={`${inputClass} resize-y flex-1`}
+                  style={{ ...inputStyle, minHeight: '80px' }}
+                />
+              </div>
             </div>
 
             {/* GitHub Repository */}

@@ -5,6 +5,8 @@ import type { Session, Project } from '../lib/api';
 import { Terminal } from './Terminal';
 import { Monitor, ArrowLeft, ExternalLink, Minimize2, Maximize2, ChevronDown, X, Columns3, Rows3, Zap, Bot, TerminalSquare, Minus } from 'lucide-react';
 import { ClaudeIcon, CodexIcon } from './CliIcons';
+import { SessionBadges } from './SessionBadges';
+import { SessionMetadataDetails } from './SessionMetadataDetails';
 
 interface ActiveTerminalsProps {
   onBack: () => void;
@@ -437,6 +439,7 @@ export function ActiveTerminals({ onBack, onGoToSession, openProjectIds, hiddenS
                       <span className="font-medium shrink-0" style={{ color: 'var(--text-primary)' }}>
                         {groupLabel}
                       </span>
+                      <SessionBadges session={session} compact />
                       <span className="truncate min-w-0 flex-1" style={{ color: 'var(--text-secondary)' }}>
                         {session.task || 'Terminal'}
                       </span>
@@ -603,6 +606,7 @@ export function ActiveTerminals({ onBack, onGoToSession, openProjectIds, hiddenS
                   <span className="text-xs font-medium shrink-0" style={{ color: 'var(--text-primary)' }}>
                     {groupLabel}
                   </span>
+                  <SessionBadges session={session} compact />
                   <span className="text-[10px] truncate min-w-0 ml-auto" style={{ color: 'var(--text-secondary)' }}>
                     {session.task || 'Terminal'}
                   </span>
@@ -730,6 +734,7 @@ export function ActiveTerminals({ onBack, onGoToSession, openProjectIds, hiddenS
               <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                 {expanded.groupLabel}
               </span>
+              <SessionBadges session={expanded.session} compact />
               <span className="text-xs ml-2 truncate" style={{ color: 'var(--text-secondary)' }}>
                 {expanded.session.task || 'Terminal'}
               </span>
@@ -762,6 +767,12 @@ export function ActiveTerminals({ onBack, onGoToSession, openProjectIds, hiddenS
                   <span>Minimize</span>
                 </button>
               </div>
+            </div>
+            <div
+              className="shrink-0 border-b px-4 py-3"
+              style={{ borderColor: 'var(--border)', background: 'var(--bg-secondary)' }}
+            >
+              <SessionMetadataDetails session={expanded.session} />
             </div>
             {/* Full interactive terminal */}
             <div className="flex-1 min-h-0">

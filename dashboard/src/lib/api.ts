@@ -280,6 +280,13 @@ export interface Session {
   exit_code: number | null;
   created_at: string;
   cli_type?: 'claude' | 'codex';
+  requested_by?: 'ui' | 'openclaw' | 'api' | null;
+  controller_kind?: string | null;
+  controller_meta_json?: string | null;
+  lock_key?: string | null;
+  write_capable?: number | null;
+  prompt_context?: 'default' | 'openclaw' | string | null;
+  applied_project_prompts?: number | null;
 }
 
 export interface Event {
@@ -418,4 +425,3 @@ export interface SessionStateResponse {
   promptType: 'choice' | 'confirmation' | 'text' | null;
   choices: string[] | null;
 }
-

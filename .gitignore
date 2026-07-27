@@ -37,6 +37,9 @@ CLAUDE.md.*.bak
 
 # Claude Code local config
 CLAUDE.local.md
+# Dolt database files (added by bd init)
+.dolt/
+
 # OctoAlly context files
 .octoally-pro/
 # OctoAlly-generated agents manifest
