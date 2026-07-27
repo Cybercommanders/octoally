@@ -217,9 +217,52 @@ octoally/
 ├── desktop-electron/    # Electron desktop app
 │   └── src/
 │       └── speech/      # Whisper STT integration
+├── integration-client/  # Shared session client (OpenClaw skill + MCP server)
+├── mcp-server/          # MCP server exposing session control to any agent harness
 ├── bin/                 # CLI launcher
 └── scripts/             # Install, release, build-archive, update, and service scripts
 ```
+
+---
+
+## MCP Server
+
+OctoAlly ships an MCP server so any harness that speaks the Model Context Protocol —
+[Hermes Agent](https://hermes-agent.nousresearch.com/docs/), Claude Code, Codex, OpenClaw —
+can launch and drive sessions without a harness-specific integration.
+
+**Tools**
+
+| Tool | Purpose |
+|---|---|
+| `octoally_list_projects` | Configured projects with paths and lock state |
+| `octoally_launch_session` | Start a Claude or Codex session against a workspace |
+| `octoally_session_status` | Normalized status, plus prompt type and choices when waiting |
+| `octoally_session_monitor` | Incremental output via an opaque cursor |
+| `octoally_session_continue` | Send follow-up input or answer a prompt |
+| `octoally_session_cancel` | Cancel a session and release its workspace lock |
+
+**Build and register**
+
+```bash
+npm run build:mcp        # builds the shared client, then the MCP server
+```
+
+Then register `mcp-server/dist/index.js` as a stdio server with your harness, setting
+`OCTOALLY_BASE_URL` (default `http://127.0.0.1:42010`) and `OCTOALLY_CONTROLLER_KIND`
+(`hermes`, `claude-code`, `codex`, ...). Per-harness configuration snippets are in
+[`specs/002-octoally-mcp-server/quickstart.md`](specs/002-octoally-mcp-server/quickstart.md).
+
+Notes:
+
+- **stdio only.** OctoAlly has no enforced authentication, so session launch is deliberately
+  not exposed on a listening socket.
+- **Lock conflicts and refusals are results, not errors.** A locked workspace returns
+  `ok: false` with the owning session and remediation, so the calling model can act on it
+  rather than retry blindly.
+- **Destructive prompts require operator approval.** The server refuses to answer a prompt it
+  classifies destructive unless `confirm_destructive` is set, and enforces that in the API
+  itself rather than relying on the client.
 
 ---
 

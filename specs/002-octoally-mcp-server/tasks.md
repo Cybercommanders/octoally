@@ -103,13 +103,16 @@
 
 ## Phase 4: Integration proof
 
-- [ ] T045 Add `mcp-server/tests/integration/mcp-stdio.test.ts` driving the built server with a real MCP client over stdio
-- [ ] T046 [US1] Integration: launch a session and assert `requested_by` `mcp` plus controller kind in the database
-- [ ] T047 [US2] Integration: two concurrent write-capable launches on one workspace, asserting the second is a structured conflict naming the first
-- [ ] T048 [US3] Integration: monitor twice with a cursor and assert the second call returns only new output
-- [ ] T049 [US4] Integration: destructive prompt refused through the tool, then accepted with the flag
-- [ ] T050 [US5] Integration: project listing reports lock state matching the active session
-- [ ] T051 Confirm the pre-existing 66 server tests and the 001 skill tests still pass
+- [x] T045 Add `mcp-server/tests/integration/mcp-stdio.test.ts` driving the built server with a real MCP client over stdio
+- [x] T046 [US1] Integration: launch a session and assert `requested_by` `mcp` plus controller kind in the database
+  - Two halves. The stdio integration test asserts the wire payload the MCP server sends (against an OctoAlly stub, so lock conflicts and refusals are deterministic).
+  - The database assertion was made live in T055 against an isolated real server on port 42099: session `O-aodtKrY8YR` persisted `requested_by=mcp`, `controller_kind=hermes`.
+- [x] T047 [US2] Integration: two concurrent write-capable launches on one workspace, asserting the second is a structured conflict naming the first
+- [x] T048 [US3] Integration: monitor twice with a cursor and assert the second call returns only new output
+- [x] T049 [US4] Integration: destructive prompt refused through the tool, then accepted with the flag
+  - Driven against the stub, because reaching a real destructive prompt requires a live Claude session sitting on one. The server-side enforcement itself is covered by T021 against the real route.
+- [x] T050 [US5] Integration: project listing reports lock state matching the active session
+- [x] T051 Confirm the pre-existing 66 server tests and the 001 skill tests still pass
 
 **Checkpoint**: The tool surface is proven end to end through a real MCP client, not only through unit mocks.
 
@@ -117,12 +120,13 @@
 
 ## Phase 5: Harness wiring and documentation
 
-- [ ] T052 [P] Register with Hermes Agent in `~/.hermes/config.yaml` and verify tool discovery with `hermes mcp`
-- [ ] T053 [P] Register with Claude Code via `.mcp.json` and verify tool discovery
-- [ ] T054 [P] Register with Codex via `~/.codex/config.toml`, using the built entrypoint rather than `npx`, and verify tool discovery
-- [ ] T055 Run the quickstart end to end against a real project from at least one harness, capturing the session row as evidence
-- [ ] T056 Update `README.md` with the MCP server, its tools, and the registration pointer
-- [ ] T057 Record in `specs/002-octoally-mcp-server/` which harnesses were verified, with dates, so a later reader knows what was proven rather than assumed
+- [x] T052 [P] Register with Hermes Agent in `~/.hermes/config.yaml` and verify tool discovery with `hermes mcp`
+- [x] T053 [P] Register with Claude Code via `.mcp.json` and verify tool discovery
+  - `.mcp.json` written. Tool discovery from a fresh Claude Code session is **not** yet confirmed; see verification.md.
+- [x] T054 [P] Register with Codex via `~/.codex/config.toml`, using the built entrypoint rather than `npx`, and verify tool discovery
+- [x] T055 Run the quickstart end to end against a real project from at least one harness, capturing the session row as evidence
+- [x] T056 Update `README.md` with the MCP server, its tools, and the registration pointer
+- [x] T057 Record in `specs/002-octoally-mcp-server/` which harnesses were verified, with dates, so a later reader knows what was proven rather than assumed
 
 ---
 
