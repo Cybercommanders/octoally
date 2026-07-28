@@ -34,7 +34,7 @@
     "test:server": "cd server && bun test",
     "test:dashboard": "cd dashboard && bun test",
     "test:client": "cd integration-client && bun test",
-    "test:mcp": "cd mcp-server && bun test",
+    "test:mcp": "cd mcp-server && npm test",
     "typecheck": "cd server && tsc --noEmit && cd ../dashboard && tsc -b && cd ../integration-client && tsc --noEmit && cd ../mcp-server && tsc --noEmit",
     "build:client": "cd integration-client && tsc",
     "build:mcp": "npm run build:client && cd mcp-server && tsc",
