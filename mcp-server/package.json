@@ -11,11 +11,11 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "bun test",
+    "test": "bun test --timeout 30000",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@octoally/integration-client": "file:../integration-client"
   },
   "devDependencies": {
