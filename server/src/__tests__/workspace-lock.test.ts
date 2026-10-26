@@ -4,11 +4,12 @@
  * Uses bun:sqlite for testing since bun's test runner doesn't support better-sqlite3.
  * The bun:sqlite API is compatible with the subset used by workspace-lock functions.
  */
-import { describe, test, expect, beforeAll, afterAll, beforeEach } from 'bun:test';
+import { describe, test, expect, beforeAll, afterAll, beforeEach, spyOn } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { join } from 'path';
-import { unlinkSync, mkdtempSync } from 'fs';
+import { unlinkSync, mkdtempSync, mkdirSync, symlinkSync, realpathSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
+import * as os from 'os';
 import {
   normalizeWorkspacePath,
   checkLock,
@@ -71,6 +72,41 @@ afterAll(() => {
 const asDb = () => db as any;
 
 describe('T006: normalizeWorkspacePath', () => {
+  test('uses the same canonical lock key for a directory and its symlink', () => {
+    const tempDir = mkdtempSync(join(tmpdir(), 'lock-symlink-'));
+    try {
+      const target = join(tempDir, 'Workspace');
+      const alias = join(tempDir, 'alias');
+      mkdirSync(target);
+      symlinkSync(target, alias, 'dir');
+      const expected = realpathSync(target);
+      expect(normalizeWorkspacePath(alias)).toBe(expected);
+      expect(normalizeWorkspacePath(alias + '/')).toBe(normalizeWorkspacePath(target));
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  test('lowercases Windows paths and restores the platform mock', () => {
+    const platform = spyOn(os, 'platform').mockReturnValue('win32');
+    try {
+      expect(normalizeWorkspacePath('/__octoally_missing__/MiXeD/Workspace/'))
+        .toBe('/__octoally_missing__/mixed/workspace');
+    } finally {
+      platform.mockRestore();
+    }
+  });
+
+  test('preserves case for Linux paths', () => {
+    const platform = spyOn(os, 'platform').mockReturnValue('linux');
+    try {
+      expect(normalizeWorkspacePath('/__octoally_missing__/MiXeD/Workspace/'))
+        .toBe('/__octoally_missing__/MiXeD/Workspace');
+    } finally {
+      platform.mockRestore();
+    }
+  });
+
   test('resolves a real directory to canonical path', () => {
     const tempDir = mkdtempSync(join(tmpdir(), 'lock-test-'));
     const result = normalizeWorkspacePath(tempDir);
