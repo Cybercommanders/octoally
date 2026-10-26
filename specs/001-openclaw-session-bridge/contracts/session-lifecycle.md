@@ -36,15 +36,19 @@ Sends input to an active session.
 
 **Skill usage**: Send follow-up instructions. Check response state for waiting_for_input transitions.
 
+## DELETE /api/sessions/:id
+
+Cancels an active session. Missing or already terminal sessions return 404.
+
+**Response**: `{ "ok": true }`. Read `GET /api/sessions/:id` to confirm persisted `status = cancelled`; do not infer cancellation from request success alone.
+
+**Side effect**: This session's effective workspace lock is released by terminal status. The historical `lock_key` remains stored. Another session may already hold a new lock.
+
+**Skill usage**: Cancel stuck or unwanted sessions. A subsequent launch can acquire the workspace if no other writer has acquired it.
+
 ## POST /api/sessions/:id/cancel
 
-Cancels an active session.
-
-**Response**: Updated session with status = cancelled.
-
-**Side effect**: Workspace lock released.
-
-**Skill usage**: Cancel stuck or unwanted sessions. Verify lock release by checking subsequent launch succeeds.
+Interrupts a stuck execute request only. It does not terminate the session or release its workspace lock. Existing execute-request semantics are unchanged.
 
 ## GET /api/sessions
 

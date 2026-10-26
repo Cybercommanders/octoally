@@ -166,7 +166,7 @@ These have since been closed (see below).
 
 ### Implementation for User Story 5
 
-- [x] T036 [US5] Implement `cancel()` operation in shared skill core — call POST /api/sessions/:id/cancel, confirm cancellation in openclaw-skills/octoally_research_session.ts
+- [x] T036 [US5] Implement `cancel()` operation in shared skill core — call DELETE /api/sessions/:id and read back persisted cancellation (POST /cancel only interrupts an execute request) in integration-client/octoally_research_session.ts
 - [x] T037 [US5] Verify cancel triggers lock release — integration test cancelling session and launching new one on same workspace in server/tests/integration/session-lock.test.ts
 
 **Checkpoint**: Cancel path functional — operators can recover from stuck sessions

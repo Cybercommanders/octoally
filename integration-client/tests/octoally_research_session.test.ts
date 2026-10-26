@@ -246,33 +246,34 @@ describe('octoally_research_session', () => {
     });
   });
 
-  test('cancel confirms cancellation and infers lock release from cancelled status', async () => {
-    const seenUrls: string[] = [];
-    const client = createStubClient((url) => {
-      seenUrls.push(url.pathname);
-      if (url.pathname === '/api/sessions/sess-7/cancel') {
-        return json(200, { ok: true });
-      }
-
-      if (url.pathname === '/api/sessions/sess-7') {
-        return json(200, {
-          session: {
-            id: 'sess-7',
-            status: 'cancelled',
-            lock_key: null,
-          },
-        });
-      }
-
-      return json(500, { error: 'Unexpected route' });
+  test('cancel terminates the session and confirms a retained historical lock key is released', async () => {
+    const seenMethods: string[] = [];
+    const client = createStubClient((url, init) => {
+      assert.equal(url.pathname, '/api/sessions/sess-7');
+      seenMethods.push(init.method ?? 'GET');
+      if (init.method === 'DELETE') return json(200, { ok: true });
+      return json(200, { session: { id: 'sess-7', status: 'cancelled', lock_key: '/workspace' } });
     });
-
     const result = await cancel('sess-7', { client });
+    assert.deepEqual(result, { sessionId: 'sess-7', status: 'cancelled', cancelled: true, lockReleased: true });
+    assert.deepEqual(seenMethods, ['DELETE', 'GET']);
+  });
 
-    assert.equal(result.status, 'cancelled');
-    assert.equal(result.cancelled, true);
-    assert.equal(result.lockReleased, true);
-    assert.deepEqual(seenUrls, ['/api/sessions/sess-7/cancel', '/api/sessions/sess-7']);
+  for (const recordStatus of ['running', 'completed', 'failed', 'unrecognized']) {
+    test(`cancel does not claim cancellation when readback is ${recordStatus}`, async () => {
+      const client = createStubClient((_url, init) => init.method === 'DELETE'
+        ? json(200, { ok: true, session: { id: 'raced', status: 'cancelled' } })
+        : json(200, { session: { id: 'raced', status: recordStatus, lock_key: null } }));
+      const result = await cancel('raced', { client });
+      assert.equal(result.cancelled, false);
+      assert.equal(result.lockReleased, false);
+    });
+  }
+
+  test('cancel surfaces an unavailable readback instead of claiming success', async () => {
+    const client = createStubClient((_url, init) => init.method === 'DELETE'
+      ? json(200, { ok: true }) : json(503, { error: 'readback unavailable' }));
+    await assert.rejects(() => cancel('unavailable', { client }), /readback unavailable/);
   });
 
   test('wrapper skills stay thin and only set cli_type', async () => {

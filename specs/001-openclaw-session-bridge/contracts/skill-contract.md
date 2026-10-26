@@ -64,7 +64,7 @@ lines: number?    # optional
 session_id: string
 ```
 
-**Behavior**: Call `POST /api/sessions/:id/cancel`. Confirm cancellation and lock release.
+**Behavior**: Call `DELETE /api/sessions/:id`, then read `GET /api/sessions/:id` to confirm `cancelled`. Terminal rows retain their historical `lock_key`; terminal status releases this session's effective lock. A replacement session may already own the workspace. `POST /api/sessions/:id/cancel` only interrupts an execute request and does not terminate the session.
 
 ## Safety Rules
 
