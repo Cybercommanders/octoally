@@ -1,6 +1,7 @@
 import type { Session } from '../lib/api';
 
-const ACTIVE_SESSION_STATUSES = new Set<Session['status']>(['pending', 'running', 'detached']);
+// Match workspace-lock.checkLock: released external writers still own their lock.
+const TERMINAL_SESSION_STATUSES = new Set<Session['status']>(['completed', 'failed', 'cancelled']);
 
 export function getSessionSourceLabel(
   session: Pick<Session, 'requested_by'>,
@@ -15,7 +16,8 @@ export function getSessionExecutorLabel(
 }
 
 export function isSessionLockActive(
-  session: Pick<Session, 'write_capable' | 'status'>,
+  session: Pick<Session, 'write_capable' | 'status' | 'lock_key'>,
 ): boolean {
-  return Boolean(session.write_capable) && ACTIVE_SESSION_STATUSES.has(session.status);
+  return session.write_capable === 1 && session.lock_key != null &&
+    !TERMINAL_SESSION_STATUSES.has(session.status);
 }
