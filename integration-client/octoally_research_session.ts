@@ -343,8 +343,8 @@ export class OctoAllyClient {
   }
 
   async cancel(sessionId: string): Promise<CancelResponse> {
-    return this.request<CancelResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/cancel`, {
-      method: 'POST',
+    return this.request<CancelResponse>(`/api/sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'DELETE',
     });
   }
 
@@ -519,16 +519,19 @@ export async function cancel(
   options: CancelOptions = {},
 ): Promise<CancelResult> {
   const client = options.client ?? new OctoAllyClient();
-  const response = await client.cancel(sessionId);
-
-  const session = response.session ?? (await client.getSession(sessionId)).session;
+  // POST /cancel only interrupts an execute request; DELETE terminates the session.
+  await client.cancel(sessionId);
+  // Read back the persisted state: a successful request alone is not proof of cancellation.
+  const session = (await client.getSession(sessionId)).session;
   const normalizedStatus = normalizeSessionRecordStatus(session.status);
 
   return {
     sessionId,
     status: normalizedStatus,
     cancelled: normalizedStatus === 'cancelled',
-    lockReleased: normalizedStatus === 'cancelled' && session.lock_key == null,
+    // Terminal rows retain lock_key for history; the server excludes them from lock ownership.
+    // This confirms this session relinquished its lock, not that no replacement owns the workspace.
+    lockReleased: normalizedStatus === 'cancelled',
   };
 }
 

@@ -73,7 +73,7 @@ Omit blocks 2/3 if prompts are empty. Only include block 3 when `prompt_context 
 | monitor/status  | `GET /api/sessions/:id/state`         |
 | display         | `GET /api/sessions/:id/display`       |
 | continue        | `POST /api/sessions/:id/execute`      |
-| cancel          | `POST /api/sessions/:id/cancel`       |
+| cancel session  | `DELETE /api/sessions/:id`            |
 
 ## R5: UI Changes Scope
 

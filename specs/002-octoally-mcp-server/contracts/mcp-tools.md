@@ -206,7 +206,7 @@ Setting `confirm_destructive` is an operator decision, not a recovery step for t
 
 ### `octoally_session_cancel`
 
-Maps to `POST /api/sessions/:id/cancel`.
+Maps to `DELETE /api/sessions/:id`, followed by `GET /api/sessions/:id` to confirm the persisted status. `POST /api/sessions/:id/cancel` only interrupts an execute request.
 
 **Input**: `session_id` (required).
 

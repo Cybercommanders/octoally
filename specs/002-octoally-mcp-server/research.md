@@ -64,7 +64,7 @@ Verified by reading the routes rather than the specification.
 | Get session | `GET /api/sessions/:id` | `server/src/routes/sessions.ts:75` |
 | Delete session | `DELETE /api/sessions/:id` | `server/src/routes/sessions.ts:345` |
 | Send input | `POST /api/sessions/:id/execute` | `server/src/routes/agent.ts:185` |
-| Cancel | `POST /api/sessions/:id/cancel` | `server/src/routes/agent.ts:250` |
+| Cancel session | `DELETE /api/sessions/:id` | `server/src/routes/sessions.ts` |
 | Session state | `GET /api/sessions/:id/state` | `server/src/routes/agent.ts:265` |
 | Rendered output | `GET /api/sessions/:id/display` | `server/src/routes/agent.ts:288` |
 | List projects | `GET /api/projects` | `server/src/routes/projects.ts:324` |
