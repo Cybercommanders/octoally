@@ -30,7 +30,7 @@ function TaskModal({
   codexReady: boolean;
   initialCliType?: 'claude' | 'codex';
   onClose: () => void;
-  onLaunch: (task: string, agentType?: string, cliType?: 'claude' | 'codex') => void;
+  onLaunch: (task: string, agentType?: string, cliType?: 'claude' | 'codex', sessionPromptOverride?: string) => void;
 }) {
   const [task, setTask] = useState('');
   const [agentType, setAgentType] = useState(agents[0]?.name || 'coder');
@@ -47,14 +47,10 @@ function TaskModal({
     return () => window.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
-  const sessionPromptVal = (sessionPrompt ?? project.session_prompt ?? '').trim();
   const effectiveTask = task.trim() || 'Start up and ask me what I want you to do and NOTHING ELSE';
-  const finalTask = sessionPromptVal
-    ? `${effectiveTask}\n\n---\nAdditional Instructions:\n${sessionPromptVal}`
-    : effectiveTask;
 
   const handleLaunch = () => {
-    onLaunch(finalTask, mode === 'agent' ? agentType : undefined, cliType);
+    onLaunch(effectiveTask, mode === 'agent' ? agentType : undefined, cliType, sessionPrompt ?? undefined);
   };
 
   return (
@@ -284,7 +280,7 @@ export function SessionLauncher({ project, onSessionCreated, onWebPageCreated }:
   const agents = agentsData?.agents ?? [];
 
   const createMutation = useMutation({
-    mutationFn: (opts: { task: string; mode: 'session' | 'agent'; agentType?: string; cliType?: 'claude' | 'codex' }) => {
+    mutationFn: (opts: { task: string; mode: 'session' | 'agent'; agentType?: string; cliType?: 'claude' | 'codex'; sessionPromptOverride?: string }) => {
       return api.sessions.create({
         project_path: project.path,
         task: opts.task,
@@ -292,6 +288,8 @@ export function SessionLauncher({ project, onSessionCreated, onWebPageCreated }:
         agent_type: opts.agentType,
         project_id: project.id,
         cli_type: opts.cliType,
+        apply_project_prompts: true,
+        session_prompt_override: opts.sessionPromptOverride,
       });
     },
     onSuccess: (data) => {
@@ -315,9 +313,9 @@ export function SessionLauncher({ project, onSessionCreated, onWebPageCreated }:
     },
   });
 
-  const handleLaunch = (task: string, agentType?: string, cliType?: 'claude' | 'codex') => {
+  const handleLaunch = (task: string, agentType?: string, cliType?: 'claude' | 'codex', sessionPromptOverride?: string) => {
     const mode = agentType ? 'agent' : 'session';
-    createMutation.mutate({ task, mode, agentType, cliType });
+    createMutation.mutate({ task, mode, agentType, cliType, sessionPromptOverride });
   };
 
   // Fetch git status for project info (may fail if not a git repo)
