@@ -88,6 +88,7 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       agent_type?: string;
       cli_type?: 'claude' | 'codex';
       apply_project_prompts?: boolean;
+      session_prompt_override?: string;
       prompt_context?: PromptContext;
       requested_by?: RequestedBy;
       controller?: SessionControllerMetadata | null;
@@ -102,6 +103,7 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       agent_type,
       cli_type,
       apply_project_prompts,
+      session_prompt_override,
       prompt_context,
       requested_by,
       controller: rawController,
@@ -115,6 +117,14 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
 
     if (apply_project_prompts !== undefined && typeof apply_project_prompts !== 'boolean') {
       return reply.status(400).send({ error: 'apply_project_prompts must be a boolean' });
+    }
+
+    if (session_prompt_override !== undefined && typeof session_prompt_override !== 'string') {
+      return reply.status(400).send({ error: 'session_prompt_override must be a string' });
+    }
+
+    if (session_prompt_override !== undefined && apply_project_prompts !== true) {
+      return reply.status(400).send({ error: 'session_prompt_override requires apply_project_prompts' });
     }
 
     if (prompt_context !== undefined && prompt_context !== 'default' && prompt_context !== 'openclaw') {
@@ -267,7 +277,7 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const finalTask = applyProjectPrompts
-      ? composeSessionTask(task, project?.session_prompt ?? undefined, project?.openclaw_prompt ?? undefined, promptContext)
+      ? composeSessionTask(task, session_prompt_override ?? project?.session_prompt ?? undefined, project?.openclaw_prompt ?? undefined, promptContext)
       : task;
     const projectId = typeof project_id === 'string' && project_id.trim()
       ? project_id
