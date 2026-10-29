@@ -1,3 +1,4 @@
+import { logLifecycleEvent } from './session-lifecycle-log.js';
 import { nanoid } from 'nanoid';
 import type Database from 'better-sqlite3';
 import {
@@ -181,7 +182,20 @@ export function createSessionRecord(
     };
   });
 
-  return transaction();
+  const result = transaction();
+  // Log only after the transaction commits: a failed insert never acquired a lock.
+  if (result.ok && result.session.write_capable && result.session.lock_key) {
+    logLifecycleEvent({
+      event: 'lock_acquired',
+      correlation_id: result.session.correlation_id,
+      session_id: result.session.id,
+      lock_key: result.session.lock_key,
+      requested_by: result.session.requested_by,
+      controller_kind: result.session.controller_kind,
+      cli_type: result.session.cli_type,
+    }, db);
+  }
+  return result;
 }
 
 export function transitionSessionToTerminal(

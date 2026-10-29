@@ -1,3 +1,4 @@
+import { logLifecycleEvent } from './session-lifecycle-log.js';
 import { strip } from '../lib/ansi.js';
 import { VirtualTerminal } from '../lib/virtual-terminal.js';
 import { JsonlReader } from '../lib/jsonl-reader.js';
@@ -504,6 +505,15 @@ export function getOrCreateTracker(sessionId: string): SessionStateTracker {
   let tracker = trackers.get(sessionId);
   if (!tracker) {
     tracker = new SessionStateTracker(sessionId);
+    tracker.onStateChange((state) => {
+      if (state.processState === 'waiting_for_input') {
+        logLifecycleEvent({
+          event: 'waiting_for_input',
+          session_id: sessionId,
+          detail: { prompt_type: state.promptType },
+        });
+      }
+    });
     trackers.set(sessionId, tracker);
   }
   return tracker;
